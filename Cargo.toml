@@ -1,0 +1,11 @@
+[package]
+name = "meta_diff"
+version = "0.0.1"
+authors = ["Alexander Botev <botevmg@gmail.com>"]
+license = "GPLv3"
+
+[[bin]]
+name = "meta_diff"
+path = "src/main.rs"
+test = false
+

@@ -1,0 +1,512 @@
+use super::graph::*;
+use std::collections::{HashMap, HashSet};
+
+#[context]
+graph_res -> Result<ComputeGraph, ParseError> = {Ok(ComputeGraph::new())}
+#[context]
+variable_table -> HashMap<String,usize> = {HashMap::new()}
+
+// ==================================================================
+// PARSER RULES
+//
+
+#[pub]
+metaFile -> Result<ComputeGraph, ParseError> = functionDefinition {graph_res.clone()}
+
+/// Set the name of the graph add all outputs and set target to the first output
+functionDefinition = (eol / __)* FUNCTION __ outputs: functionReturn __? EQ __? main:ID __? mainParamList eol statementList END {
+	let mut result : Result<(),ParseError> = Ok(());
+	match *graph_res{
+		Ok(ref mut graph) => {
+			graph.name = main;
+			for output in outputs.iter(){
+				match variable_table.get(output){
+					Some(id) => {graph.outputs.push(*id);},
+					None => {
+						let (line, col) = pos_to_line(input, state.max_err_pos);	
+						result = Err(ParseError{line: line, column: col, offset: state.max_err_pos, expected: HashSet::new(),
+							msg: Some(format!("Output variable \'{}\' has not been defined", output))});		
+						break;
+					}
+				}
+			}
+		},
+		Err(ref msg) => {result = Err(msg.clone());}
+	}
+	match result {
+		Ok(_) => (),
+		Err(msg) => {*graph_res = Err(msg);}
+	}
+}
+
+/// Return all of the outputs names
+functionReturn -> Vec<String> =  LSBRACE __? ids: ID ++ (__? COMMA) __? RSBRACE {ids} 
+
+/// Only match pattern
+mainParamList = LPAREN __? inputVar ++ (__? COMMA) __? RPAREN
+
+/// Add all of the inputs to the variable table and in to the graph
+inputVar = param: AT? name:ID {
+	match *graph_res{
+		Ok(ref mut graph) => match param {
+			Some(_) => {variable_table.insert(name.clone(),graph.add_parameter(name));()},
+			None => {variable_table.insert(name.clone(),graph.add_const_input(name));()}
+		},
+		Err(_) => (),
+	}
+} 
+
+/// Only match pattern
+statementList = ((eol / comment/ __)* statement)* (eol / comment/ __)*
+
+/// Insert the variable on the left to represent the graph node of the expression on the right
+statement = name: ID __? EQ __? id:expression __? SEMI {
+	variable_table.insert(name,id);
+}
+
+/// Logical operators
+g1	= NEQ / DOUBLE_EQ / GRTE / GRT / LSTE / LST
+/// Plus or Minus operators
+g2	-> Operator = PLUS {Operator::Add(Vec::new())} / MINUS {Operator::Neg(0)}
+/// Multiplication and division operators
+g3	-> Operator = TIMES {Operator::Mul(Vec::new())}  / DIVISION {Operator::Div(0)}
+
+/// Currently the logical operators are not supported
+expression	-> usize = vars: e1 ++ (__ g1 __) {
+	let mut result : Result<usize,ParseError> = Ok(0);
+	match *graph_res{
+		Ok(ref mut graph) => match vars.len(){
+			0 => unreachable!(),
+			1 => {result = Ok(vars[0]);},
+			_ => {
+				let (line, col) = pos_to_line(input, state.max_err_pos);	
+				result = Err(ParseError{line: line, column: col, offset: state.max_err_pos, expected: HashSet::new(),
+					msg: Some("Comparison operators not supported!".to_string())});
+			}
+		},
+		Err(ref msg) => {result = Err(msg.clone());}
+	}
+	match result {
+		Ok(var) => var,
+		Err(msg) => {*graph_res = Err(msg); 0}
+	}
+}
+
+/// Addition or subtraction, however subtraction in the graph is represented as 
+/// addition and unary negation
+e1	-> usize = first: e2 rest:( __ op:g2 __ var:e2 {
+	let mut result : Result<usize,ParseError> = Ok(0);
+	match *graph_res{
+		Ok(ref mut graph) => match op {
+			Operator::Add(_) => {result = Ok(var);},
+			Operator::Neg(_) => match graph.add_operation(Operator::Neg(var)) {
+				Ok(var) => {result = Ok(var);},
+				Err(msg) => {
+					let (line, col) = pos_to_line(input, state.max_err_pos);	
+					result = Err(ParseError{line: line, column: col, offset: state.max_err_pos, expected: HashSet::new(),
+						msg: Some(msg)});
+				}
+			},
+			_ => unreachable!()
+		},
+		Err(ref msg) => {result = Err(msg.clone());}
+	}
+	match result {
+		Ok(var) => var,
+		Err(msg) => {*graph_res = Err(msg); 0}
+	}
+})* {
+	let mut result : Result<usize,ParseError> = Ok(0);
+	match *graph_res{
+		Ok(ref mut graph) => match rest.len() {
+			0 => {result = Ok(first);},
+			_ => {
+				let mut vars = vec![first]; 
+				vars.extend(rest);
+				match graph.add_operation(Operator::Add(vars)) {
+					Ok(var) => {result = Ok(var);},
+					Err(msg) => {
+						let (line, col) = pos_to_line(input, state.max_err_pos);	
+						result = Err(ParseError{line: line, column: col, offset: state.max_err_pos, expected: HashSet::new(),
+							msg: Some(msg)});
+					}
+				}
+			}
+		},
+		Err(ref msg) => {result = Err(msg.clone());}
+	}
+	match result {
+		Ok(var) => var,
+		Err(msg) => {*graph_res = Err(msg); 0}
+	}
+}
+
+/// Multiplication and division, however division in the graph is represented as 
+/// multiplication and unary division
+e2	-> usize = first: e3 rest:( __ op:g3 __ var:e3  {
+	let mut result : Result<usize,ParseError> = Ok(0);
+	match *graph_res{
+		Ok(ref mut graph) => match op {
+			Operator::Mul(_) => {result = Ok(var);},
+			Operator::Div(_) => match graph.add_operation(Operator::Div(var)) {
+				Ok(var) => {result = Ok(var);},
+				Err(msg) => {
+					let (line, col) = pos_to_line(input, state.max_err_pos);	
+					result = Err(ParseError{line: line, column: col, offset: state.max_err_pos, expected: HashSet::new(),
+						msg: Some(msg)});
+				}
+			},
+			_ => unreachable!()
+		},
+		Err(ref msg) => {result = Err(msg.clone());}
+	}
+	match result {
+		Ok(var) => var,
+		Err(msg) => {*graph_res = Err(msg); 0}
+	}
+})* {
+	let mut result : Result<usize,ParseError> = Ok(0);
+	match *graph_res{
+		Ok(ref mut graph) => match rest.len() {
+			0 => {result = Ok(first);},
+			_ => {
+				let mut vars = vec![first]; 
+				vars.extend(rest);
+				match graph.add_operation(Operator::Mul(vars)) {
+					Ok(var) => {result = Ok(var);},
+					Err(msg) => {
+						let (line, col) = pos_to_line(input, state.max_err_pos);	
+						result = Err(ParseError{line: line, column: col, offset: state.max_err_pos, expected: HashSet::new(),
+							msg: Some(msg)});
+					}
+				}
+			}
+		},
+		Err(ref msg) => {result = Err(msg.clone());}
+	}
+	match result {
+		Ok(var) => var,
+		Err(msg) => {*graph_res = Err(msg); 0}
+	}
+}
+
+/// Matrix multiplication - having higher precedence than normal
+e3	-> usize = vars: e4 ++ (__ DOT_PRODUCT __) {
+	let mut result : Result<usize,ParseError> = Ok(0);
+	match *graph_res{
+		Ok(ref mut graph) => match vars.len() {
+			0 => unreachable!(),
+			1 => {result = Ok(vars[0]);},
+			_ => match graph.add_operation(Operator::Dot(vars)) {
+				Ok(var) => {result = Ok(var);},
+				Err(msg) => {
+					let (line, col) = pos_to_line(input, state.max_err_pos);	
+					result = Err(ParseError{line: line, column: col, offset: state.max_err_pos, expected: HashSet::new(),
+						msg: Some(msg)});
+				}
+			}
+		},
+		Err(ref msg) => {result = Err(msg.clone());}
+	}
+	match result {
+		Ok(var) => var,
+		Err(msg) => {*graph_res = Err(msg); 0}
+	}
+}
+
+/// Unary negation
+e4	-> usize = m:(MINUS __ )? var: e5 {
+	let mut result : Result<usize,ParseError> = Ok(0);
+	match *graph_res{
+		Ok(ref mut graph) => match m{
+			Some(_) => match graph.add_operation(Operator::Neg(var)) {
+				Ok(var) => {result = Ok(var);},
+				Err(msg) => {
+					let (line, col) = pos_to_line(input, state.max_err_pos);	
+					result = Err(ParseError{line: line, column: col, offset: state.max_err_pos, expected: HashSet::new(),
+						msg: Some(msg)});
+				}
+			},
+			None => {result = Ok(var);}
+		},
+		Err(ref msg) => {result = Err(msg.clone());}
+	}
+	match result {
+		Ok(var) => var,
+		Err(msg) => {*graph_res = Err(msg); 0}
+	}
+}
+
+/// Powering one value by another
+e5  -> usize = first: e6 second: (__ EXP __ var:e6 {var})? {
+	let mut result : Result<usize,ParseError> = Ok(0);
+	match *graph_res{
+		Ok(ref mut graph) => match second{
+			Some(id) => match graph.add_operation(Operator::Pow(first, id)) {
+				Ok(var) => {result = Ok(var);},
+				Err(msg) => {
+					let (line, col) = pos_to_line(input, state.max_err_pos);	
+					result = Err(ParseError{line: line, column: col, offset: state.max_err_pos, expected: HashSet::new(),
+						msg: Some(msg)});
+				}
+			},
+			None => {result = Ok(first);}
+		},
+		Err(ref msg) => {result = Err(msg.clone());}
+	}
+	match result {
+		Ok(var) => var,
+		Err(msg) => {*graph_res = Err(msg); 0}
+	}
+}
+
+/// Transpose
+e6	-> usize = var: unaryExpression tr: TRANSPOSE? {
+	let mut result : Result<usize,ParseError> = Ok(0);
+	match *graph_res{
+		Ok(ref mut graph) => match tr{
+			Some(_) => match graph.add_operation(Operator::Transpose(var)) {
+				Ok(var) => {result = Ok(var);},
+				Err(msg) => {
+					let (line, col) = pos_to_line(input, state.max_err_pos);	
+					result = Err(ParseError{line: line, column: col, offset: state.max_err_pos, expected: HashSet::new(),
+						msg: Some(msg)});
+				}
+			},
+			None => {result = Ok(var);}
+		},
+		Err(ref msg) => {result = Err(msg.clone());}
+	}
+	match result {
+		Ok(var) => var,
+		Err(msg) => {*graph_res = Err(msg); 0}
+	}
+}
+
+/// Unary expression
+unaryExpression -> usize =  baseExpression / (LPAREN __? e:expression __? RPAREN {e})
+
+/// Only if this is an ID we have to check if it is in the variable table
+baseExpression -> usize = NUMBER /  indexedVar / varDotFunc / funcCall / name:ID {
+	let mut result : Result<usize,ParseError> = Ok(0);
+	match *graph_res{
+		Ok(ref mut graph) => match variable_table.get(&name) {
+			Some(id) => {result = Ok(*id);},
+			None => {
+				let (line, col) = pos_to_line(input, state.max_err_pos);	
+				result = Err(ParseError{line: line, column: col, offset: state.max_err_pos, expected: HashSet::new(),
+					msg: Some(format!("Use of undefined variable \'{}\'", name))});
+			}
+		},
+		Err(ref msg) => {result = Err(msg.clone());}
+	}
+	match result {
+		Ok(var) => var,
+		Err(msg) => {*graph_res = Err(msg); 0}
+	}
+}
+
+/// Index a variable - var[arg1,arg2,arg3,arg4]
+indexedVar -> usize =  name: ID LSBRACE __? arg1: expression __? COMMA __? arg2:expression __? COMMA __? 
+arg3:expression __? COMMA __? arg4:expression __? RSBRACE {
+	let mut result : Result<usize,ParseError> = Ok(0);
+	match *graph_res{
+		Ok(ref mut graph) => match variable_table.get(&name) {
+			Some(id) => match graph.add_operation(Operator::SubIndex(*id,arg1,arg2,arg3,arg4)) {
+				Ok(var) => {result = Ok(var);},
+				Err(msg) => {
+					let (line, col) = pos_to_line(input, state.max_err_pos);	
+					result = Err(ParseError{line: line, column: col, offset: state.max_err_pos, expected: HashSet::new(),
+						msg: Some(msg)});
+				}
+			},
+			None => {
+				let (line, col) = pos_to_line(input, state.max_err_pos);	
+				result = Err(ParseError{line: line, column: col, offset: state.max_err_pos, expected: HashSet::new(),
+					msg: Some(format!("Use of undefined variable \'{}\'", name))});
+			}
+		},
+		Err(ref msg) => {result = Err(msg.clone());}
+	}
+	match result {
+		Ok(var) => var,
+		Err(msg) => {*graph_res = Err(msg); 0}
+	}
+}
+
+/// Call on a variable an unary function - var.func(args)
+varDotFunc -> usize = var:ID DOT func:ID args:paramList {
+	let mut result : Result<usize,ParseError> = Ok(0);
+	match *graph_res{
+		Ok(ref mut graph) => match variable_table.get(&var){
+			Some(id) => {
+				let mut newargs = args.clone();
+				newargs.insert(0,*id); 
+				match graph.string_to_operator(func, newargs) {
+					Ok(var) => {result = Ok(var);},
+					Err(msg) => {
+						let (line, col) = pos_to_line(input, state.max_err_pos);	
+						result = Err(ParseError{line: line, column: col, offset: state.max_err_pos, expected: HashSet::new(),
+							msg: Some(msg)});
+					}
+				}
+			},
+			None => {
+				let (line, col) = pos_to_line(input, state.max_err_pos);	
+				result = Err(ParseError{line: line, column: col, offset: state.max_err_pos, expected: HashSet::new(),
+					msg: Some(format!("Use of undefined variable \'{}\'", var))});
+			}
+		},
+		Err(ref msg) => {result = Err(msg.clone());}
+	}
+	match result {
+		Ok(var) => var,
+		Err(msg) => {*graph_res = Err(msg); 0}
+	}
+}
+
+/// Function call
+funcCall -> usize = func:ID args:paramList {
+	let mut result : Result<usize,ParseError> = Ok(0);
+	match *graph_res{
+		Ok(ref mut graph) => match graph.string_to_operator(func, args) {
+			Ok(var) => {result = Ok(var);},
+			Err(msg) => {
+				let (line, col) = pos_to_line(input, state.max_err_pos);	
+				result = Err(ParseError{line: line, column: col, offset: state.max_err_pos, expected: HashSet::new(),
+					msg: Some(msg)});
+			}
+		},
+		Err(ref msg) => {result = Err(msg.clone());}
+	}
+	match result {
+		Ok(var) => var,
+		Err(msg) => {*graph_res = Err(msg); 0}
+	}
+}
+
+/// Parameter list
+paramList -> Vec<usize> =  LPAREN __? vars: expression ** (__? COMMA __?) __? RPAREN{
+	vars
+}
+
+// ==================================================================
+// LEXER RULES
+//
+
+//
+// language keywords
+//
+
+// BREAK	= "break";
+// CASE	= "case";
+// CATCH	= "catch";
+// CONTINUE= "continue";
+// ELSE	= "else";
+// ELSEIF	= "elseif";
+END	= "end";
+// FOR	= "for";
+FUNCTION= "function";
+// GLOBAL	= "global";
+// IF	= "if";
+// OTHERWISE= "otherwise";
+// PERSISTENT= "persistent";
+// RETURNS	= "return";
+// SWITCH	= "switch";
+// TRY	= "try";
+// WHILE	= "while";
+// CLEAR	= "clear";
+// VARARGIN= "varargin";
+// NARGIN= "nargin";
+// VARARGOUT= "varargout";
+// NARGOUT= "nargout";
+// HOLDON = "hold on";
+// PAUSE = "pause";
+// PARAMS= "params";
+
+// Operators and assignments
+//
+EQ	= "=";
+
+// // Binary - Not supported
+// BIN_OR	= "|";
+// BIN_AND	= "&";
+
+// Logical - Not supported
+// LOG_OR	= "||";
+// LOG_AND	= "&&";
+
+// Comparison - Not supported
+DOUBLE_EQ	= "==";
+NEQ	= "~=";
+LST	= "<";
+LSTE	= "<=";
+GRT	= ">";
+GRTE	= ">=";
+
+// Standard arithmetic
+PLUS	= "+";
+MINUS	= "-";
+TIMES	= "*";
+DIVISION	= "/";
+EXP	= "^";
+TRANSPOSE	= "\'";
+DOT_PRODUCT = "dot";
+
+//
+// Other useful language snippets
+//
+
+SEMI	= ";";
+LPAREN	= "(";
+	RPAREN	= ")";
+LBRACE	= "{";
+RBRACE	= "}";
+LSBRACE	= "[";
+RSBRACE	= "]";
+AT	= "@";
+DOT	= ".";
+COMMA	= ",";
+
+
+//
+// Identifiers, numbers, strings, linecomennts and  whitespace
+//
+
+ID -> String = [a-zA-Z] [a-zA-Z0-9_]* {  match_str.to_string() }
+
+NUMBER -> usize = [0-9]+ ('.' [0-9]+)? {
+	let mut result : Result<usize,ParseError> = Ok(0);
+	match *graph_res{
+		Ok(ref mut graph) => match match_str.parse::<i64>(){
+			Ok(value) => {result = Ok(graph.add_int(value));},
+			Err(_) => match match_str.parse::<f64>(){
+				Ok(value) => {result = Ok(graph.add_float(value));},
+				Err(_) => unreachable!()
+			}
+		},
+		Err(ref msg) => {result = Err(msg.clone());}
+	}
+	match result {
+		Ok(var) => var,
+		Err(msg) => {*graph_res = Err(msg); 0}
+	}
+}
+
+comment = "%" (!eolChar .)*
+
+/* Modeled after ECMA-262, 5th ed., 7.3. */
+eol
+= "\n"
+/ "\r\n"
+/ "\r"
+/ "\u{2028}"
+/ "\u{2029}"
+
+eolChar
+= [\n\r\u2028\u2029]
+
+/* Modeled after ECMA-262, 5th ed., 7.2.  - whitespace */
+__  = [ \t\u{00A0}\u{FEFF}\u{1680}\u{180E}\u{2000}-\u{200A}\u{202F}\u{205F}\u{3000}] // \v\f removed
+
+
