@@ -56,7 +56,7 @@ impl Default for SymMonomial{
 ///
 /// # Examples
 /// ```
-/// # use autodiff::core::symbolic::SymMonomial;
+/// # use meta_diff::core::symbolic::SymMonomial;
 /// //-5x^2 == 2x^2
 /// let mut mon1 = SymMonomial::new(2);
 /// mon1.powers[0] = 2;
@@ -67,7 +67,7 @@ impl Default for SymMonomial{
 /// assert!(mon1 == mon2);
 /// ```
 /// ```
-/// # use autodiff::core::symbolic::SymMonomial;
+/// # use meta_diff::core::symbolic::SymMonomial;
 /// //x^2y != xy^2
 /// let mut mon1 = SymMonomial::new(2);
 /// mon1.powers[0] = 2;
@@ -78,7 +78,7 @@ impl Default for SymMonomial{
 /// assert!(mon1 != mon2);
 /// ```
 /// ```should_panic
-/// # use autodiff::core::symbolic::SymMonomial;
+/// # use meta_diff::core::symbolic::SymMonomial;
 /// // Panic example
 /// let mon1 = SymMonomial::new(1);
 /// let mon2 = SymMonomial::new(2);
@@ -109,7 +109,7 @@ impl Eq for SymMonomial{}
 /// number of symbolic variables
 /// # Examples
 /// ```
-/// # use autodiff::core::symbolic::SymMonomial;
+/// # use meta_diff::core::symbolic::SymMonomial;
 /// // x^5 < x^3y^3
 /// let mut mon1 = SymMonomial::new(2);
 /// mon1.powers[0] = 5;
@@ -119,7 +119,7 @@ impl Eq for SymMonomial{}
 /// assert!(mon1 < mon2);
 /// ```
 /// ```
-/// # use autodiff::core::symbolic::SymMonomial;
+/// # use meta_diff::core::symbolic::SymMonomial;
 /// # use std::cmp::Ordering;
 /// // x^2y^3 == x^3y^2
 /// let mut mon1 = SymMonomial::new(2);
@@ -131,7 +131,7 @@ impl Eq for SymMonomial{}
 /// assert!(mon1.partial_cmp(&mon2).unwrap() == Ordering::Equal);
 /// ```
 /// ```
-/// # use autodiff::core::symbolic::SymMonomial;
+/// # use meta_diff::core::symbolic::SymMonomial;
 /// # use std::cmp::Ordering;
 /// // Monomials with differnet number of variables are incomparable
 /// let mut mon1 = SymMonomial::new(1);
@@ -227,7 +227,7 @@ impl SymPolynomial{
 	/// such as addition, mutliplication and etc. you should always call simplify.
 	/// # Examples
 	/// ```
-	/// # use autodiff::core::symbolic::*;
+	/// # use meta_diff::core::symbolic::*;
 	/// // simplify(2x^2y^3 + x^2y^3) = 3x^2y^3
 	/// let mut mon1 = SymMonomial::new(2);
 	/// mon1.coefficient = 2;
@@ -279,7 +279,7 @@ impl SymPolynomial{
 /// If the number of symbolic variables in the two polynomials is different
 /// # Examples
 /// ```
-/// # use autodiff::core::symbolic::*;
+/// # use meta_diff::core::symbolic::*;
 /// //-5x^2 == 2x^2 for a monomials, but -5x^2 != 2x^2 for a polynomial
 /// let mut mon1 = SymMonomial::new(2);
 /// mon1.powers[0] = 2;
@@ -295,7 +295,7 @@ impl SymPolynomial{
 /// assert!(poly1 != poly2);
 /// ```
 /// ```
-/// # use autodiff::core::symbolic::SymMonomial;
+/// # use meta_diff::core::symbolic::SymMonomial;
 /// //x^2y + 1 != x^2 + 1
 /// let mut mon1 = SymMonomial::new(2);
 /// mon1.powers[0] = 2;
@@ -368,7 +368,7 @@ impl<'a> Neg for &'a SymPolynomial{
 /// # Panics
 /// If the number of symbolic variables in the two monomials is different
 /// ```
-/// # use autodiff::core::symbolic::*;
+/// # use meta_diff::core::symbolic::*;
 /// // x + x^2 = x^2 + x
 /// let mut mon1 = SymMonomial::new(1);
 /// mon1.powers[0] = 1;
@@ -396,7 +396,7 @@ impl<'a, 'b> Add<&'b SymMonomial> for &'a SymMonomial{
 
 /// # Examples
 /// ```
-/// # use autodiff::core::symbolic::*;
+/// # use meta_diff::core::symbolic::*;
 /// // (x + 1) + 1 = x + 2
 /// let mut mon1 = SymMonomial::new(1);
 /// mon1.powers[0] = 1;
@@ -437,7 +437,7 @@ impl<'a> Add<&'a SymMonomial> for i32{
 /// If the number of symbolic variables in the monomial and polynomial are different
 /// # Examples
 /// ```
-/// # use autodiff::core::symbolic::*;
+/// # use meta_diff::core::symbolic::*;
 /// // (x + 1) + x = 2x + 1
 /// let mut mon1 = SymMonomial::new(1);
 /// mon1.powers[0] = 1;
@@ -478,7 +478,7 @@ impl<'a, 'b> Add<&'b SymPolynomial> for &'a SymMonomial{
 /// If the number of symbolic variables in the two polynomials are different
 /// # Examples
 /// ```
-/// # use autodiff::core::symbolic::*;
+/// # use meta_diff::core::symbolic::*;
 /// // (x+1) + (y+2) = x + y + 3
 /// let mut mon1 = SymMonomial::new(2);
 /// mon1.powers[0] = 1;
@@ -510,7 +510,7 @@ impl<'a, 'b> Add<&'b SymPolynomial> for &'a SymPolynomial{
 
 /// # Examples
 /// ```
-/// # use autodiff::core::symbolic::*;
+/// # use meta_diff::core::symbolic::*;
 /// // (x + 1) + 2 = x + 3
 /// let mut mon1 = SymMonomial::new(2);
 /// mon1.powers[0] = 1;
@@ -623,7 +623,7 @@ impl<'a> Sub<&'a SymPolynomial> for i32{
 /// If the number of symbolic variables in the two monomials are different
 /// # Examples
 /// ```
-/// # use autodiff::core::symbolic::*;
+/// # use meta_diff::core::symbolic::*;
 /// // 2xy * y^2 = 2xy^3
 /// let mut mon1 = SymMonomial::new(2);
 /// mon1.powers[0] = 1;
@@ -650,7 +650,7 @@ impl<'a, 'b> Mul<&'b SymMonomial> for &'a SymMonomial{
 
 /// # Examples
 /// ```
-/// # use autodiff::core::symbolic::*;
+/// # use meta_diff::core::symbolic::*;
 /// //2xy * 3 = 6xy
 /// let mut mon1 = SymMonomial::new(2);
 /// mon1.powers[0] = 1;
@@ -691,7 +691,7 @@ impl<'a, 'b> Mul<&'b SymPolynomial> for &'a SymMonomial{
 /// If the number of symbolic variables in the monomial and polynomial are different
 /// # Examples
 /// ```
-/// # use autodiff::core::symbolic::*;
+/// # use meta_diff::core::symbolic::*;
 /// // (2xy+1) * 3y^2 = 6xy^3 + 3y^2
 /// let mut mon1 = SymMonomial::new(2);
 /// mon1.powers[0] = 1;
@@ -730,7 +730,7 @@ impl<'a, 'b> Mul<&'b SymMonomial> for &'a SymPolynomial{
 /// If the number of symbolic variables in the two polynomials are different
 /// # Examples
 /// ```
-/// # use autodiff::core::symbolic::*;
+/// # use meta_diff::core::symbolic::*;
 /// // (2xy+1) * (3y^2 + 2) = 6xy^3 + 4xy + 3y^2 + 2
 /// let mut mon1 = SymMonomial::new(2);
 /// mon1.powers[0] = 1;
@@ -797,7 +797,7 @@ impl<'a> Mul<i32> for &'a SymPolynomial{
 /// If the number of symbolic variables in the two monomials are different
 /// # Examples
 /// ```
-/// # use autodiff::core::symbolic::*;
+/// # use meta_diff::core::symbolic::*;
 /// // 4x^2y^3 / 2xy = 2xy^2
 /// let mut mon1 = SymMonomial::new(2);
 /// mon1.powers[0] = 2;
@@ -815,7 +815,7 @@ impl<'a> Mul<i32> for &'a SymPolynomial{
 /// assert!(poly.powers[1] == 2);
 /// ```
 /// ```
-/// # use autodiff::core::symbolic::*;
+/// # use meta_diff::core::symbolic::*;
 /// // 2x^2y^3 / 4xy = None
 /// let mut mon1 = SymMonomial::new(2);
 /// mon1.powers[0] = 2;
@@ -829,7 +829,7 @@ impl<'a> Mul<i32> for &'a SymPolynomial{
 /// assert!(option.is_none());
 /// ```
 /// ```
-/// # use autodiff::core::symbolic::*;
+/// # use meta_diff::core::symbolic::*;
 /// // 2x^2y^3 / 4x^3y = None
 /// let mut mon1 = SymMonomial::new(2);
 /// mon1.powers[0] = 2;
@@ -866,7 +866,7 @@ impl<'a, 'b> Div<&'b SymMonomial> for &'a SymMonomial{
 /// Returns None if the monomial is not divisible by the integer
 /// # Examples
 /// ```
-/// # use autodiff::core::symbolic::*;
+/// # use meta_diff::core::symbolic::*;
 /// // 4x^2y^3 / 2 = 2x^2y^3
 /// let mut mon1 = SymMonomial::new(2);
 /// mon1.powers[0] = 2;
@@ -880,7 +880,7 @@ impl<'a, 'b> Div<&'b SymMonomial> for &'a SymMonomial{
 /// assert!(poly.powers[1] == 3);
 /// ```
 /// ```
-/// # use autodiff::core::symbolic::*;
+/// # use meta_diff::core::symbolic::*;
 /// // 2x^2y^3 / 3 = None
 /// let mut mon1 = SymMonomial::new(2);
 /// mon1.powers[0] = 2;
@@ -905,7 +905,7 @@ impl<'a> Div<i32> for &'a SymMonomial{
 /// If the number of symbolic variables in the monomial and polynomial are different
 /// # Examples
 /// ```
-/// # use autodiff::core::symbolic::*;
+/// # use meta_diff::core::symbolic::*;
 /// // (2x^2y + x^3y + xy) / xy = 2x + x^2 + 1
 /// let mut mon1 = SymMonomial::new(2);
 /// mon1.powers[0] = 1;
@@ -922,7 +922,7 @@ impl<'a> Div<i32> for &'a SymMonomial{
 /// assert!(option.unwrap()== poly1);
 /// ```
 /// ```
-/// # use autodiff::core::symbolic::*;
+/// # use meta_diff::core::symbolic::*;
 /// // (2x^2y + x^3y + xy + 1) / xy = None
 /// let mut mon1 = SymMonomial::new(2);
 /// mon1.powers[0] = 1;
@@ -967,7 +967,7 @@ impl<'a, 'b> Div<&'b SymMonomial> for &'a SymPolynomial{
 /// If the number of symbolic variables in the two polynomials are different
 /// # Examples
 /// ```
-/// # use autodiff::core::symbolic::*;
+/// # use meta_diff::core::symbolic::*;
 /// // (2x^4 + x^3y + 3x^2y + 2x^2 + xy^2 + xy + y^2 + y) / (x^2 + y + 1) = 2x^2 + y + xy
 /// let mut mon1 = SymMonomial::new(2);
 /// mon1.powers[0] = 2;
@@ -984,7 +984,7 @@ impl<'a, 'b> Div<&'b SymMonomial> for &'a SymPolynomial{
 /// assert!(option.unwrap()== poly_result);
 /// ```
 /// ```
-/// # use autodiff::core::symbolic::*;
+/// # use meta_diff::core::symbolic::*;
 /// // (2x^4 + x^3y + 3x^2y + 2x^2 + xy^2 + xy + y^2 + y) / (x^2 + y + 2) = None
 /// let mut mon1 = SymMonomial::new(2);
 /// mon1.powers[0] = 2;
@@ -1046,7 +1046,7 @@ impl<'a, 'b> Div<&'b SymPolynomial> for &'a SymPolynomial{
 /// Returns None if the polynomial is not divisible by the other polynomial
 /// # Examples
 /// ```
-/// # use autodiff::core::symbolic::*;
+/// # use meta_diff::core::symbolic::*;
 /// // (2x^2 + 2xy) / 2 = x^2 + xy
 /// let mut mon1 = SymMonomial::new(2);
 /// mon1.powers[0] = 2;
@@ -1060,7 +1060,7 @@ impl<'a, 'b> Div<&'b SymPolynomial> for &'a SymPolynomial{
 /// assert!(option.unwrap()== poly_result);
 /// ```
 /// ```
-/// # use autodiff::core::symbolic::*;
+/// # use meta_diff::core::symbolic::*;
 /// // (2x^2 + 2xy + 1) / 2 = None
 /// let mut mon1 = SymMonomial::new(2);
 /// mon1.powers[0] = 2;

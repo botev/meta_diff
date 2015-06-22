@@ -414,24 +414,19 @@ fn parse_functionDefinition<'input>(input: &'input str,
                                                                                                                                                                                                                         None
                                                                                                                                                                                                                         =>
                                                                                                                                                                                                                         {
-                                                                                                                                                                                                                            let (line,
-                                                                                                                                                                                                                                 col) =
-                                                                                                                                                                                                                                pos_to_line(input,
-                                                                                                                                                                                                                                            state.max_err_pos);
                                                                                                                                                                                                                             result
                                                                                                                                                                                                                                 =
-                                                                                                                                                                                                                                Err(ParseError{line:
-                                                                                                                                                                                                                                                   line,
-                                                                                                                                                                                                                                               column:
-                                                                                                                                                                                                                                                   col,
-                                                                                                                                                                                                                                               offset:
-                                                                                                                                                                                                                                                   state.max_err_pos,
-                                                                                                                                                                                                                                               expected:
-                                                                                                                                                                                                                                                   HashSet::new(),
-                                                                                                                                                                                                                                               msg:
-                                                                                                                                                                                                                                                   Some(format!("Output variable \'{}\' has not been defined"
-                                                                                                                                                                                                                                                                ,
-                                                                                                                                                                                                                                                                output)),});
+                                                                                                                                                                                                                                result_err!(input
+                                                                                                                                                                                                                                            ,
+                                                                                                                                                                                                                                            state
+                                                                                                                                                                                                                                            ,
+                                                                                                                                                                                                                                            format
+                                                                                                                                                                                                                                            !
+                                                                                                                                                                                                                                            (
+                                                                                                                                                                                                                                            "Output variable \'{}\' has not been defined"
+                                                                                                                                                                                                                                            ,
+                                                                                                                                                                                                                                            output
+                                                                                                                                                                                                                                            ));
                                                                                                                                                                                                                             break
                                                                                                                                                                                                                                 ;
                                                                                                                                                                                                                         }
@@ -846,29 +841,47 @@ fn parse_inputVar<'input>(input: &'input str, state: &mut ParseState,
                                                             &input[start_pos..pos];
                                                         Matched(pos,
                                                                 {
-                                                                    match *graph_res
-                                                                        {
-                                                                        Ok(ref mut graph)
-                                                                        =>
-                                                                        match param
+                                                                    if ComputeGraph::is_function_name(&name)
+                                                                       {
+                                                                        *graph_res
+                                                                            =
+                                                                            result_err!(input
+                                                                                        ,
+                                                                                        state
+                                                                                        ,
+                                                                                        format
+                                                                                        !
+                                                                                        (
+                                                                                        "Can not have a variable with name \'{}\' since it is a built in function"
+                                                                                        ,
+                                                                                        name
+                                                                                        ))
+                                                                    } else {
+                                                                        match *graph_res
                                                                             {
-                                                                            Some(_)
+                                                                            Ok(ref mut graph)
                                                                             =>
-                                                                            {
-                                                                                variable_table.insert(name.clone(),
-                                                                                                      graph.add_parameter(name));
-                                                                                ()
-                                                                            }
-                                                                            None
+                                                                            match param
+                                                                                {
+                                                                                Some(_)
+                                                                                =>
+                                                                                {
+                                                                                    variable_table.insert(name.clone(),
+                                                                                                          graph.add_parameter(name));
+                                                                                    ()
+                                                                                }
+                                                                                None
+                                                                                =>
+                                                                                {
+                                                                                    variable_table.insert(name.clone(),
+                                                                                                          graph.add_const_input(name));
+                                                                                    ()
+                                                                                }
+                                                                            },
+                                                                            Err(_)
                                                                             =>
-                                                                            {
-                                                                                variable_table.insert(name.clone(),
-                                                                                                      graph.add_const_input(name));
-                                                                                ()
-                                                                            }
-                                                                        },
-                                                                        Err(_)
-                                                                        => (),
+                                                                            (),
+                                                                        }
                                                                     }
                                                                 })
                                                     }
@@ -1089,8 +1102,48 @@ fn parse_statement<'input>(input: &'input str, state: &mut ParseState,
                                                                                                                         &input[start_pos..pos];
                                                                                                                     Matched(pos,
                                                                                                                             {
-                                                                                                                                variable_table.insert(name,
-                                                                                                                                                      id);
+                                                                                                                                let result =
+                                                                                                                                    match *graph_res
+                                                                                                                                        {
+                                                                                                                                        Ok(ref mut graph)
+                                                                                                                                        =>
+                                                                                                                                        {
+                                                                                                                                            if ComputeGraph::is_function_name(&name)
+                                                                                                                                               {
+                                                                                                                                                result_err!(input
+                                                                                                                                                            ,
+                                                                                                                                                            state
+                                                                                                                                                            ,
+                                                                                                                                                            format
+                                                                                                                                                            !
+                                                                                                                                                            (
+                                                                                                                                                            "Can not have a variable with name \'{}\' since it is a built in function"
+                                                                                                                                                            ,
+                                                                                                                                                            name
+                                                                                                                                                            ))
+                                                                                                                                            } else {
+                                                                                                                                                variable_table.insert(name,
+                                                                                                                                                                      id);
+                                                                                                                                                Ok(())
+                                                                                                                                            }
+                                                                                                                                        }
+                                                                                                                                        Err(ref msg)
+                                                                                                                                        =>
+                                                                                                                                        Err(msg.clone()),
+                                                                                                                                    };
+                                                                                                                                match result
+                                                                                                                                    {
+                                                                                                                                    Ok(var)
+                                                                                                                                    =>
+                                                                                                                                    var,
+                                                                                                                                    Err(msg)
+                                                                                                                                    =>
+                                                                                                                                    {
+                                                                                                                                        *graph_res
+                                                                                                                                            =
+                                                                                                                                            Err(msg);
+                                                                                                                                    }
+                                                                                                                                }
                                                                                                                             })
                                                                                                                 }
                                                                                                             }
@@ -1349,7 +1402,16 @@ fn parse_expression<'input>(input: &'input str, state: &mut ParseState,
                                 let sep_res =
                                     {
                                         let seq_res =
-                                            parse___(input, state, pos);
+                                            match parse___(input, state, pos)
+                                                {
+                                                Matched(newpos, value) => {
+                                                    Matched(newpos,
+                                                            Some(value))
+                                                }
+                                                Failed => {
+                                                    Matched(pos, None)
+                                                }
+                                            };
                                         match seq_res {
                                             Matched(pos, _) => {
                                                 {
@@ -1358,9 +1420,21 @@ fn parse_expression<'input>(input: &'input str, state: &mut ParseState,
                                                                  pos);
                                                     match seq_res {
                                                         Matched(pos, _) => {
-                                                            parse___(input,
-                                                                     state,
-                                                                     pos)
+                                                            match parse___(input,
+                                                                           state,
+                                                                           pos)
+                                                                {
+                                                                Matched(newpos,
+                                                                        value)
+                                                                => {
+                                                                    Matched(newpos,
+                                                                            Some(value))
+                                                                }
+                                                                Failed => {
+                                                                    Matched(pos,
+                                                                            None)
+                                                                }
+                                                            }
                                                         }
                                                         Failed => Failed,
                                                     }
@@ -1404,43 +1478,32 @@ fn parse_expression<'input>(input: &'input str, state: &mut ParseState,
                                                 &input[start_pos..pos];
                                             Matched(pos,
                                                     {
-                                                        let mut result:
-                                                                Result<usize,
-                                                                       ParseError> =
-                                                            Ok(0);
-                                                        match *graph_res {
-                                                            Ok(ref mut graph)
-                                                            =>
-                                                            match vars.len() {
-                                                                0 =>
-                                                                unreachable!(),
-                                                                1 => {
-                                                                    result =
-                                                                        Ok(vars[0]);
-                                                                }
-                                                                _ => {
-                                                                    let (line,
-                                                                         col) =
-                                                                        pos_to_line(input,
-                                                                                    state.max_err_pos);
-                                                                    result =
-                                                                        Err(ParseError{line:
-                                                                                           line,
-                                                                                       column:
-                                                                                           col,
-                                                                                       offset:
-                                                                                           state.max_err_pos,
-                                                                                       expected:
-                                                                                           HashSet::new(),
-                                                                                       msg:
-                                                                                           Some("Comparison operators not supported!".to_string()),});
-                                                                }
-                                                            },
-                                                            Err(ref msg) => {
-                                                                result =
-                                                                    Err(msg.clone());
-                                                            }
-                                                        }
+                                                        let result =
+                                                            match *graph_res {
+                                                                Ok(ref mut graph)
+                                                                =>
+                                                                match vars.len()
+                                                                    {
+                                                                    0 =>
+                                                                    unreachable!(),
+                                                                    1 =>
+                                                                    Ok(vars[0]),
+                                                                    _ =>
+                                                                    result_err!(input
+                                                                                ,
+                                                                                state
+                                                                                ,
+                                                                                "Comparison operators not supported!"
+                                                                                .
+                                                                                to_string
+                                                                                (
+
+                                                                                )),
+                                                                },
+                                                                Err(ref msg)
+                                                                =>
+                                                                Err(msg.clone()),
+                                                            };
                                                         match result {
                                                             Ok(var) => var,
                                                             Err(msg) => {
@@ -1482,8 +1545,18 @@ fn parse_e1<'input>(input: &'input str, state: &mut ParseState, pos: usize)
                                             let start_pos = pos;
                                             {
                                                 let seq_res =
-                                                    parse___(input, state,
-                                                             pos);
+                                                    match parse___(input,
+                                                                   state, pos)
+                                                        {
+                                                        Matched(newpos, value)
+                                                        => {
+                                                            Matched(newpos,
+                                                                    Some(value))
+                                                        }
+                                                        Failed => {
+                                                            Matched(pos, None)
+                                                        }
+                                                    };
                                                 match seq_res {
                                                     Matched(pos, _) => {
                                                         {
@@ -1497,9 +1570,24 @@ fn parse_e1<'input>(input: &'input str, state: &mut ParseState, pos: usize)
                                                                 {
                                                                     {
                                                                         let seq_res =
-                                                                            parse___(input,
-                                                                                     state,
-                                                                                     pos);
+                                                                            match parse___(input,
+                                                                                           state,
+                                                                                           pos)
+                                                                                {
+                                                                                Matched(newpos,
+                                                                                        value)
+                                                                                =>
+                                                                                {
+                                                                                    Matched(newpos,
+                                                                                            Some(value))
+                                                                                }
+                                                                                Failed
+                                                                                =>
+                                                                                {
+                                                                                    Matched(pos,
+                                                                                            None)
+                                                                                }
+                                                                            };
                                                                         match seq_res
                                                                             {
                                                                             Matched(pos,
@@ -1535,67 +1623,39 @@ fn parse_e1<'input>(input: &'input str, state: &mut ParseState, pos: usize)
                                                                                                                         &input[start_pos..pos];
                                                                                                                     Matched(pos,
                                                                                                                             {
-                                                                                                                                let mut result:
-                                                                                                                                        Result<usize,
-                                                                                                                                               ParseError> =
-                                                                                                                                    Ok(0);
-                                                                                                                                match *graph_res
-                                                                                                                                    {
-                                                                                                                                    Ok(ref mut graph)
-                                                                                                                                    =>
-                                                                                                                                    match op
+                                                                                                                                let result =
+                                                                                                                                    match *graph_res
                                                                                                                                         {
-                                                                                                                                        Operator::Add(_)
+                                                                                                                                        Ok(ref mut graph)
                                                                                                                                         =>
-                                                                                                                                        {
-                                                                                                                                            result
-                                                                                                                                                =
-                                                                                                                                                Ok(var);
-                                                                                                                                        }
-                                                                                                                                        Operator::Neg(_)
-                                                                                                                                        =>
-                                                                                                                                        match graph.add_operation(Operator::Neg(var))
+                                                                                                                                        match op
                                                                                                                                             {
-                                                                                                                                            Ok(var)
+                                                                                                                                            Operator::Add(_)
                                                                                                                                             =>
-                                                                                                                                            {
-                                                                                                                                                result
-                                                                                                                                                    =
-                                                                                                                                                    Ok(var);
-                                                                                                                                            }
-                                                                                                                                            Err(msg)
+                                                                                                                                            Ok(var),
+                                                                                                                                            Operator::Neg(_)
                                                                                                                                             =>
-                                                                                                                                            {
-                                                                                                                                                let (line,
-                                                                                                                                                     col) =
-                                                                                                                                                    pos_to_line(input,
-                                                                                                                                                                state.max_err_pos);
-                                                                                                                                                result
-                                                                                                                                                    =
-                                                                                                                                                    Err(ParseError{line:
-                                                                                                                                                                       line,
-                                                                                                                                                                   column:
-                                                                                                                                                                       col,
-                                                                                                                                                                   offset:
-                                                                                                                                                                       state.max_err_pos,
-                                                                                                                                                                   expected:
-                                                                                                                                                                       HashSet::new(),
-                                                                                                                                                                   msg:
-                                                                                                                                                                       Some(msg),});
-                                                                                                                                            }
+                                                                                                                                            match graph.add_operation(Operator::Neg(var))
+                                                                                                                                                {
+                                                                                                                                                Ok(var)
+                                                                                                                                                =>
+                                                                                                                                                Ok(var),
+                                                                                                                                                Err(msg)
+                                                                                                                                                =>
+                                                                                                                                                result_err!(input
+                                                                                                                                                            ,
+                                                                                                                                                            state
+                                                                                                                                                            ,
+                                                                                                                                                            msg),
+                                                                                                                                            },
+                                                                                                                                            _
+                                                                                                                                            =>
+                                                                                                                                            unreachable!(),
                                                                                                                                         },
-                                                                                                                                        _
+                                                                                                                                        Err(ref msg)
                                                                                                                                         =>
-                                                                                                                                        unreachable!(),
-                                                                                                                                    },
-                                                                                                                                    Err(ref msg)
-                                                                                                                                    =>
-                                                                                                                                    {
-                                                                                                                                        result
-                                                                                                                                            =
-                                                                                                                                            Err(msg.clone());
-                                                                                                                                    }
-                                                                                                                                }
+                                                                                                                                        Err(msg.clone()),
+                                                                                                                                    };
                                                                                                                                 match result
                                                                                                                                     {
                                                                                                                                     Ok(var)
@@ -1668,68 +1728,41 @@ fn parse_e1<'input>(input: &'input str, state: &mut ParseState, pos: usize)
                                                             &input[start_pos..pos];
                                                         Matched(pos,
                                                                 {
-                                                                    let mut result:
-                                                                            Result<usize,
-                                                                                   ParseError> =
-                                                                        Ok(0);
-                                                                    match *graph_res
-                                                                        {
-                                                                        Ok(ref mut graph)
-                                                                        =>
-                                                                        match rest.len()
+                                                                    let result =
+                                                                        match *graph_res
                                                                             {
-                                                                            0
+                                                                            Ok(ref mut graph)
                                                                             =>
-                                                                            {
-                                                                                result
-                                                                                    =
-                                                                                    Ok(first);
-                                                                            }
-                                                                            _
-                                                                            =>
-                                                                            {
-                                                                                let mut vars =
-                                                                                    vec!(first);
-                                                                                vars.extend(rest);
-                                                                                match graph.add_operation(Operator::Add(vars))
-                                                                                    {
-                                                                                    Ok(var)
-                                                                                    =>
-                                                                                    {
-                                                                                        result
-                                                                                            =
-                                                                                            Ok(var);
-                                                                                    }
-                                                                                    Err(msg)
-                                                                                    =>
-                                                                                    {
-                                                                                        let (line,
-                                                                                             col) =
-                                                                                            pos_to_line(input,
-                                                                                                        state.max_err_pos);
-                                                                                        result
-                                                                                            =
-                                                                                            Err(ParseError{line:
-                                                                                                               line,
-                                                                                                           column:
-                                                                                                               col,
-                                                                                                           offset:
-                                                                                                               state.max_err_pos,
-                                                                                                           expected:
-                                                                                                               HashSet::new(),
-                                                                                                           msg:
-                                                                                                               Some(msg),});
+                                                                            match rest.len()
+                                                                                {
+                                                                                0
+                                                                                =>
+                                                                                Ok(first),
+                                                                                _
+                                                                                =>
+                                                                                {
+                                                                                    let mut vars =
+                                                                                        vec!(first);
+                                                                                    vars.extend(rest);
+                                                                                    match graph.add_operation(Operator::Add(vars))
+                                                                                        {
+                                                                                        Ok(var)
+                                                                                        =>
+                                                                                        Ok(var),
+                                                                                        Err(msg)
+                                                                                        =>
+                                                                                        result_err!(input
+                                                                                                    ,
+                                                                                                    state
+                                                                                                    ,
+                                                                                                    msg),
                                                                                     }
                                                                                 }
-                                                                            }
-                                                                        },
-                                                                        Err(ref msg)
-                                                                        => {
-                                                                            result
-                                                                                =
-                                                                                Err(msg.clone());
-                                                                        }
-                                                                    }
+                                                                            },
+                                                                            Err(ref msg)
+                                                                            =>
+                                                                            Err(msg.clone()),
+                                                                        };
                                                                     match result
                                                                         {
                                                                         Ok(var)
@@ -1780,8 +1813,18 @@ fn parse_e2<'input>(input: &'input str, state: &mut ParseState, pos: usize)
                                             let start_pos = pos;
                                             {
                                                 let seq_res =
-                                                    parse___(input, state,
-                                                             pos);
+                                                    match parse___(input,
+                                                                   state, pos)
+                                                        {
+                                                        Matched(newpos, value)
+                                                        => {
+                                                            Matched(newpos,
+                                                                    Some(value))
+                                                        }
+                                                        Failed => {
+                                                            Matched(pos, None)
+                                                        }
+                                                    };
                                                 match seq_res {
                                                     Matched(pos, _) => {
                                                         {
@@ -1795,9 +1838,24 @@ fn parse_e2<'input>(input: &'input str, state: &mut ParseState, pos: usize)
                                                                 {
                                                                     {
                                                                         let seq_res =
-                                                                            parse___(input,
-                                                                                     state,
-                                                                                     pos);
+                                                                            match parse___(input,
+                                                                                           state,
+                                                                                           pos)
+                                                                                {
+                                                                                Matched(newpos,
+                                                                                        value)
+                                                                                =>
+                                                                                {
+                                                                                    Matched(newpos,
+                                                                                            Some(value))
+                                                                                }
+                                                                                Failed
+                                                                                =>
+                                                                                {
+                                                                                    Matched(pos,
+                                                                                            None)
+                                                                                }
+                                                                            };
                                                                         match seq_res
                                                                             {
                                                                             Matched(pos,
@@ -1833,67 +1891,39 @@ fn parse_e2<'input>(input: &'input str, state: &mut ParseState, pos: usize)
                                                                                                                         &input[start_pos..pos];
                                                                                                                     Matched(pos,
                                                                                                                             {
-                                                                                                                                let mut result:
-                                                                                                                                        Result<usize,
-                                                                                                                                               ParseError> =
-                                                                                                                                    Ok(0);
-                                                                                                                                match *graph_res
-                                                                                                                                    {
-                                                                                                                                    Ok(ref mut graph)
-                                                                                                                                    =>
-                                                                                                                                    match op
+                                                                                                                                let result =
+                                                                                                                                    match *graph_res
                                                                                                                                         {
-                                                                                                                                        Operator::Mul(_)
+                                                                                                                                        Ok(ref mut graph)
                                                                                                                                         =>
-                                                                                                                                        {
-                                                                                                                                            result
-                                                                                                                                                =
-                                                                                                                                                Ok(var);
-                                                                                                                                        }
-                                                                                                                                        Operator::Div(_)
-                                                                                                                                        =>
-                                                                                                                                        match graph.add_operation(Operator::Div(var))
+                                                                                                                                        match op
                                                                                                                                             {
-                                                                                                                                            Ok(var)
+                                                                                                                                            Operator::Mul(_)
                                                                                                                                             =>
-                                                                                                                                            {
-                                                                                                                                                result
-                                                                                                                                                    =
-                                                                                                                                                    Ok(var);
-                                                                                                                                            }
-                                                                                                                                            Err(msg)
+                                                                                                                                            Ok(var),
+                                                                                                                                            Operator::Div(_)
                                                                                                                                             =>
-                                                                                                                                            {
-                                                                                                                                                let (line,
-                                                                                                                                                     col) =
-                                                                                                                                                    pos_to_line(input,
-                                                                                                                                                                state.max_err_pos);
-                                                                                                                                                result
-                                                                                                                                                    =
-                                                                                                                                                    Err(ParseError{line:
-                                                                                                                                                                       line,
-                                                                                                                                                                   column:
-                                                                                                                                                                       col,
-                                                                                                                                                                   offset:
-                                                                                                                                                                       state.max_err_pos,
-                                                                                                                                                                   expected:
-                                                                                                                                                                       HashSet::new(),
-                                                                                                                                                                   msg:
-                                                                                                                                                                       Some(msg),});
-                                                                                                                                            }
+                                                                                                                                            match graph.add_operation(Operator::Div(var))
+                                                                                                                                                {
+                                                                                                                                                Ok(var)
+                                                                                                                                                =>
+                                                                                                                                                Ok(var),
+                                                                                                                                                Err(msg)
+                                                                                                                                                =>
+                                                                                                                                                result_err!(input
+                                                                                                                                                            ,
+                                                                                                                                                            state
+                                                                                                                                                            ,
+                                                                                                                                                            msg),
+                                                                                                                                            },
+                                                                                                                                            _
+                                                                                                                                            =>
+                                                                                                                                            unreachable!(),
                                                                                                                                         },
-                                                                                                                                        _
+                                                                                                                                        Err(ref msg)
                                                                                                                                         =>
-                                                                                                                                        unreachable!(),
-                                                                                                                                    },
-                                                                                                                                    Err(ref msg)
-                                                                                                                                    =>
-                                                                                                                                    {
-                                                                                                                                        result
-                                                                                                                                            =
-                                                                                                                                            Err(msg.clone());
-                                                                                                                                    }
-                                                                                                                                }
+                                                                                                                                        Err(msg.clone()),
+                                                                                                                                    };
                                                                                                                                 match result
                                                                                                                                     {
                                                                                                                                     Ok(var)
@@ -1966,68 +1996,41 @@ fn parse_e2<'input>(input: &'input str, state: &mut ParseState, pos: usize)
                                                             &input[start_pos..pos];
                                                         Matched(pos,
                                                                 {
-                                                                    let mut result:
-                                                                            Result<usize,
-                                                                                   ParseError> =
-                                                                        Ok(0);
-                                                                    match *graph_res
-                                                                        {
-                                                                        Ok(ref mut graph)
-                                                                        =>
-                                                                        match rest.len()
+                                                                    let result =
+                                                                        match *graph_res
                                                                             {
-                                                                            0
+                                                                            Ok(ref mut graph)
                                                                             =>
-                                                                            {
-                                                                                result
-                                                                                    =
-                                                                                    Ok(first);
-                                                                            }
-                                                                            _
-                                                                            =>
-                                                                            {
-                                                                                let mut vars =
-                                                                                    vec!(first);
-                                                                                vars.extend(rest);
-                                                                                match graph.add_operation(Operator::Mul(vars))
-                                                                                    {
-                                                                                    Ok(var)
-                                                                                    =>
-                                                                                    {
-                                                                                        result
-                                                                                            =
-                                                                                            Ok(var);
-                                                                                    }
-                                                                                    Err(msg)
-                                                                                    =>
-                                                                                    {
-                                                                                        let (line,
-                                                                                             col) =
-                                                                                            pos_to_line(input,
-                                                                                                        state.max_err_pos);
-                                                                                        result
-                                                                                            =
-                                                                                            Err(ParseError{line:
-                                                                                                               line,
-                                                                                                           column:
-                                                                                                               col,
-                                                                                                           offset:
-                                                                                                               state.max_err_pos,
-                                                                                                           expected:
-                                                                                                               HashSet::new(),
-                                                                                                           msg:
-                                                                                                               Some(msg),});
+                                                                            match rest.len()
+                                                                                {
+                                                                                0
+                                                                                =>
+                                                                                Ok(first),
+                                                                                _
+                                                                                =>
+                                                                                {
+                                                                                    let mut vars =
+                                                                                        vec!(first);
+                                                                                    vars.extend(rest);
+                                                                                    match graph.add_operation(Operator::Mul(vars))
+                                                                                        {
+                                                                                        Ok(var)
+                                                                                        =>
+                                                                                        Ok(var),
+                                                                                        Err(msg)
+                                                                                        =>
+                                                                                        result_err!(input
+                                                                                                    ,
+                                                                                                    state
+                                                                                                    ,
+                                                                                                    msg),
                                                                                     }
                                                                                 }
-                                                                            }
-                                                                        },
-                                                                        Err(ref msg)
-                                                                        => {
-                                                                            result
-                                                                                =
-                                                                                Err(msg.clone());
-                                                                        }
-                                                                    }
+                                                                            },
+                                                                            Err(ref msg)
+                                                                            =>
+                                                                            Err(msg.clone()),
+                                                                        };
                                                                     match result
                                                                         {
                                                                         Ok(var)
@@ -2074,7 +2077,16 @@ fn parse_e3<'input>(input: &'input str, state: &mut ParseState, pos: usize)
                                 let sep_res =
                                     {
                                         let seq_res =
-                                            parse___(input, state, pos);
+                                            match parse___(input, state, pos)
+                                                {
+                                                Matched(newpos, value) => {
+                                                    Matched(newpos,
+                                                            Some(value))
+                                                }
+                                                Failed => {
+                                                    Matched(pos, None)
+                                                }
+                                            };
                                         match seq_res {
                                             Matched(pos, _) => {
                                                 {
@@ -2084,9 +2096,21 @@ fn parse_e3<'input>(input: &'input str, state: &mut ParseState, pos: usize)
                                                                           pos);
                                                     match seq_res {
                                                         Matched(pos, _) => {
-                                                            parse___(input,
-                                                                     state,
-                                                                     pos)
+                                                            match parse___(input,
+                                                                           state,
+                                                                           pos)
+                                                                {
+                                                                Matched(newpos,
+                                                                        value)
+                                                                => {
+                                                                    Matched(newpos,
+                                                                            Some(value))
+                                                                }
+                                                                Failed => {
+                                                                    Matched(pos,
+                                                                            None)
+                                                                }
+                                                            }
                                                         }
                                                         Failed => Failed,
                                                     }
@@ -2130,55 +2154,35 @@ fn parse_e3<'input>(input: &'input str, state: &mut ParseState, pos: usize)
                                                 &input[start_pos..pos];
                                             Matched(pos,
                                                     {
-                                                        let mut result:
-                                                                Result<usize,
-                                                                       ParseError> =
-                                                            Ok(0);
-                                                        match *graph_res {
-                                                            Ok(ref mut graph)
-                                                            =>
-                                                            match vars.len() {
-                                                                0 =>
-                                                                unreachable!(),
-                                                                1 => {
-                                                                    result =
-                                                                        Ok(vars[0]);
-                                                                }
-                                                                _ =>
-                                                                match graph.add_operation(Operator::Dot(vars))
+                                                        let result =
+                                                            match *graph_res {
+                                                                Ok(ref mut graph)
+                                                                =>
+                                                                match vars.len()
                                                                     {
-                                                                    Ok(var) =>
-                                                                    {
-                                                                        result
-                                                                            =
-                                                                            Ok(var);
-                                                                    }
-                                                                    Err(msg)
-                                                                    => {
-                                                                        let (line,
-                                                                             col) =
-                                                                            pos_to_line(input,
-                                                                                        state.max_err_pos);
-                                                                        result
-                                                                            =
-                                                                            Err(ParseError{line:
-                                                                                               line,
-                                                                                           column:
-                                                                                               col,
-                                                                                           offset:
-                                                                                               state.max_err_pos,
-                                                                                           expected:
-                                                                                               HashSet::new(),
-                                                                                           msg:
-                                                                                               Some(msg),});
-                                                                    }
+                                                                    0 =>
+                                                                    unreachable!(),
+                                                                    1 =>
+                                                                    Ok(vars[0]),
+                                                                    _ =>
+                                                                    match graph.add_operation(Operator::Dot(vars))
+                                                                        {
+                                                                        Ok(var)
+                                                                        =>
+                                                                        Ok(var),
+                                                                        Err(msg)
+                                                                        =>
+                                                                        result_err!(input
+                                                                                    ,
+                                                                                    state
+                                                                                    ,
+                                                                                    msg),
+                                                                    },
                                                                 },
-                                                            },
-                                                            Err(ref msg) => {
-                                                                result =
-                                                                    Err(msg.clone());
-                                                            }
-                                                        }
+                                                                Err(ref msg)
+                                                                =>
+                                                                Err(msg.clone()),
+                                                            };
                                                         match result {
                                                             Ok(var) => var,
                                                             Err(msg) => {
@@ -2206,116 +2210,97 @@ fn parse_e4<'input>(input: &'input str, state: &mut ParseState, pos: usize)
         let start_pos = pos;
         {
             let seq_res =
-                match {
-                          let seq_res = parse_MINUS(input, state, pos);
-                          match seq_res {
-                              Matched(pos, _) => {
-                                  parse___(input, state, pos)
-                              }
-                              Failed => Failed,
-                          }
-                      } {
+                match parse_MINUS(input, state, pos) {
                     Matched(newpos, value) => { Matched(newpos, Some(value)) }
                     Failed => { Matched(pos, None) }
                 };
             match seq_res {
                 Matched(pos, m) => {
                     {
-                        let seq_res = parse_e5(input, state, pos);
+                        let seq_res =
+                            match parse___(input, state, pos) {
+                                Matched(newpos, value) => {
+                                    Matched(newpos, Some(value))
+                                }
+                                Failed => { Matched(pos, None) }
+                            };
                         match seq_res {
-                            Matched(pos, var) => {
+                            Matched(pos, _) => {
                                 {
-                                    let _context = state.context.clone();
-                                    let mut _context =
-                                        &mut *_context.borrow_mut();
-                                    {
-                                        let graph_res =
-                                            &mut _context.graph_res_ctx;
-                                        {
+                                    let seq_res = parse_e5(input, state, pos);
+                                    match seq_res {
+                                        Matched(pos, var) => {
                                             {
-                                                let variable_table =
-                                                    &mut _context.variable_table_ctx;
+                                                let _context =
+                                                    state.context.clone();
+                                                let mut _context =
+                                                    &mut *_context.borrow_mut();
                                                 {
+                                                    let graph_res =
+                                                        &mut _context.graph_res_ctx;
                                                     {
-                                                        let match_str =
-                                                            &input[start_pos..pos];
-                                                        Matched(pos,
+                                                        {
+                                                            let variable_table =
+                                                                &mut _context.variable_table_ctx;
+                                                            {
                                                                 {
-                                                                    let mut result:
-                                                                            Result<usize,
-                                                                                   ParseError> =
-                                                                        Ok(0);
-                                                                    match *graph_res
-                                                                        {
-                                                                        Ok(ref mut graph)
-                                                                        =>
-                                                                        match m
+                                                                    let match_str =
+                                                                        &input[start_pos..pos];
+                                                                    Matched(pos,
                                                                             {
-                                                                            Some(_)
-                                                                            =>
-                                                                            match graph.add_operation(Operator::Neg(var))
-                                                                                {
-                                                                                Ok(var)
-                                                                                =>
-                                                                                {
-                                                                                    result
-                                                                                        =
-                                                                                        Ok(var);
+                                                                                let result =
+                                                                                    match *graph_res
+                                                                                        {
+                                                                                        Ok(ref mut graph)
+                                                                                        =>
+                                                                                        match m
+                                                                                            {
+                                                                                            Some(_)
+                                                                                            =>
+                                                                                            match graph.add_operation(Operator::Neg(var))
+                                                                                                {
+                                                                                                Ok(var)
+                                                                                                =>
+                                                                                                Ok(var),
+                                                                                                Err(msg)
+                                                                                                =>
+                                                                                                result_err!(input
+                                                                                                            ,
+                                                                                                            state
+                                                                                                            ,
+                                                                                                            msg),
+                                                                                            },
+                                                                                            None
+                                                                                            =>
+                                                                                            Ok(var),
+                                                                                        },
+                                                                                        Err(ref msg)
+                                                                                        =>
+                                                                                        Err(msg.clone()),
+                                                                                    };
+                                                                                match result
+                                                                                    {
+                                                                                    Ok(var)
+                                                                                    =>
+                                                                                    var,
+                                                                                    Err(msg)
+                                                                                    =>
+                                                                                    {
+                                                                                        *graph_res
+                                                                                            =
+                                                                                            Err(msg);
+                                                                                        0
+                                                                                    }
                                                                                 }
-                                                                                Err(msg)
-                                                                                =>
-                                                                                {
-                                                                                    let (line,
-                                                                                         col) =
-                                                                                        pos_to_line(input,
-                                                                                                    state.max_err_pos);
-                                                                                    result
-                                                                                        =
-                                                                                        Err(ParseError{line:
-                                                                                                           line,
-                                                                                                       column:
-                                                                                                           col,
-                                                                                                       offset:
-                                                                                                           state.max_err_pos,
-                                                                                                       expected:
-                                                                                                           HashSet::new(),
-                                                                                                       msg:
-                                                                                                           Some(msg),});
-                                                                                }
-                                                                            },
-                                                                            None
-                                                                            =>
-                                                                            {
-                                                                                result
-                                                                                    =
-                                                                                    Ok(var);
-                                                                            }
-                                                                        },
-                                                                        Err(ref msg)
-                                                                        => {
-                                                                            result
-                                                                                =
-                                                                                Err(msg.clone());
-                                                                        }
-                                                                    }
-                                                                    match result
-                                                                        {
-                                                                        Ok(var)
-                                                                        =>
-                                                                        var,
-                                                                        Err(msg)
-                                                                        => {
-                                                                            *graph_res
-                                                                                =
-                                                                                Err(msg);
-                                                                            0
-                                                                        }
-                                                                    }
-                                                                })
+                                                                            })
+                                                                }
+                                                            }
+                                                        }
                                                     }
                                                 }
                                             }
                                         }
+                                        Failed => Failed,
                                     }
                                 }
                             }
@@ -2342,7 +2327,16 @@ fn parse_e5<'input>(input: &'input str, state: &mut ParseState, pos: usize)
                                       let start_pos = pos;
                                       {
                                           let seq_res =
-                                              parse___(input, state, pos);
+                                              match parse___(input, state,
+                                                             pos) {
+                                                  Matched(newpos, value) => {
+                                                      Matched(newpos,
+                                                              Some(value))
+                                                  }
+                                                  Failed => {
+                                                      Matched(pos, None)
+                                                  }
+                                              };
                                           match seq_res {
                                               Matched(pos, _) => {
                                                   {
@@ -2354,9 +2348,22 @@ fn parse_e5<'input>(input: &'input str, state: &mut ParseState, pos: usize)
                                                           Matched(pos, _) => {
                                                               {
                                                                   let seq_res =
-                                                                      parse___(input,
-                                                                               state,
-                                                                               pos);
+                                                                      match parse___(input,
+                                                                                     state,
+                                                                                     pos)
+                                                                          {
+                                                                          Matched(newpos,
+                                                                                  value)
+                                                                          => {
+                                                                              Matched(newpos,
+                                                                                      Some(value))
+                                                                          }
+                                                                          Failed
+                                                                          => {
+                                                                              Matched(pos,
+                                                                                      None)
+                                                                          }
+                                                                      };
                                                                   match seq_res
                                                                       {
                                                                       Matched(pos,
@@ -2444,64 +2451,37 @@ fn parse_e5<'input>(input: &'input str, state: &mut ParseState, pos: usize)
                                                             &input[start_pos..pos];
                                                         Matched(pos,
                                                                 {
-                                                                    let mut result:
-                                                                            Result<usize,
-                                                                                   ParseError> =
-                                                                        Ok(0);
-                                                                    match *graph_res
-                                                                        {
-                                                                        Ok(ref mut graph)
-                                                                        =>
-                                                                        match second
+                                                                    let result =
+                                                                        match *graph_res
                                                                             {
-                                                                            Some(id)
+                                                                            Ok(ref mut graph)
                                                                             =>
-                                                                            match graph.add_operation(Operator::Pow(first,
-                                                                                                                    id))
+                                                                            match second
                                                                                 {
-                                                                                Ok(var)
+                                                                                Some(id)
                                                                                 =>
-                                                                                {
-                                                                                    result
-                                                                                        =
-                                                                                        Ok(var);
-                                                                                }
-                                                                                Err(msg)
+                                                                                match graph.add_operation(Operator::Pow(first,
+                                                                                                                        id))
+                                                                                    {
+                                                                                    Ok(var)
+                                                                                    =>
+                                                                                    Ok(var),
+                                                                                    Err(msg)
+                                                                                    =>
+                                                                                    result_err!(input
+                                                                                                ,
+                                                                                                state
+                                                                                                ,
+                                                                                                msg),
+                                                                                },
+                                                                                None
                                                                                 =>
-                                                                                {
-                                                                                    let (line,
-                                                                                         col) =
-                                                                                        pos_to_line(input,
-                                                                                                    state.max_err_pos);
-                                                                                    result
-                                                                                        =
-                                                                                        Err(ParseError{line:
-                                                                                                           line,
-                                                                                                       column:
-                                                                                                           col,
-                                                                                                       offset:
-                                                                                                           state.max_err_pos,
-                                                                                                       expected:
-                                                                                                           HashSet::new(),
-                                                                                                       msg:
-                                                                                                           Some(msg),});
-                                                                                }
+                                                                                Ok(first),
                                                                             },
-                                                                            None
+                                                                            Err(ref msg)
                                                                             =>
-                                                                            {
-                                                                                result
-                                                                                    =
-                                                                                    Ok(first);
-                                                                            }
-                                                                        },
-                                                                        Err(ref msg)
-                                                                        => {
-                                                                            result
-                                                                                =
-                                                                                Err(msg.clone());
-                                                                        }
-                                                                    }
+                                                                            Err(msg.clone()),
+                                                                        };
                                                                     match result
                                                                         {
                                                                         Ok(var)
@@ -2567,63 +2547,36 @@ fn parse_e6<'input>(input: &'input str, state: &mut ParseState, pos: usize)
                                                             &input[start_pos..pos];
                                                         Matched(pos,
                                                                 {
-                                                                    let mut result:
-                                                                            Result<usize,
-                                                                                   ParseError> =
-                                                                        Ok(0);
-                                                                    match *graph_res
-                                                                        {
-                                                                        Ok(ref mut graph)
-                                                                        =>
-                                                                        match tr
+                                                                    let mut result =
+                                                                        match *graph_res
                                                                             {
-                                                                            Some(_)
+                                                                            Ok(ref mut graph)
                                                                             =>
-                                                                            match graph.add_operation(Operator::Transpose(var))
+                                                                            match tr
                                                                                 {
-                                                                                Ok(var)
+                                                                                Some(_)
                                                                                 =>
-                                                                                {
-                                                                                    result
-                                                                                        =
-                                                                                        Ok(var);
-                                                                                }
-                                                                                Err(msg)
+                                                                                match graph.add_operation(Operator::Transpose(var))
+                                                                                    {
+                                                                                    Ok(var)
+                                                                                    =>
+                                                                                    Ok(var),
+                                                                                    Err(msg)
+                                                                                    =>
+                                                                                    result_err!(input
+                                                                                                ,
+                                                                                                state
+                                                                                                ,
+                                                                                                msg),
+                                                                                },
+                                                                                None
                                                                                 =>
-                                                                                {
-                                                                                    let (line,
-                                                                                         col) =
-                                                                                        pos_to_line(input,
-                                                                                                    state.max_err_pos);
-                                                                                    result
-                                                                                        =
-                                                                                        Err(ParseError{line:
-                                                                                                           line,
-                                                                                                       column:
-                                                                                                           col,
-                                                                                                       offset:
-                                                                                                           state.max_err_pos,
-                                                                                                       expected:
-                                                                                                           HashSet::new(),
-                                                                                                       msg:
-                                                                                                           Some(msg),});
-                                                                                }
+                                                                                Ok(var),
                                                                             },
-                                                                            None
+                                                                            Err(ref msg)
                                                                             =>
-                                                                            {
-                                                                                result
-                                                                                    =
-                                                                                    Ok(var);
-                                                                            }
-                                                                        },
-                                                                        Err(ref msg)
-                                                                        => {
-                                                                            result
-                                                                                =
-                                                                                Err(msg.clone());
-                                                                        }
-                                                                    }
+                                                                            Err(msg.clone()),
+                                                                        };
                                                                     match result
                                                                         {
                                                                         Ok(var)
@@ -2809,54 +2762,34 @@ fn parse_baseExpression<'input>(input: &'input str, state: &mut ParseState,
                                                                                 &input[start_pos..pos];
                                                                             Matched(pos,
                                                                                     {
-                                                                                        let mut result:
-                                                                                                Result<usize,
-                                                                                                       ParseError> =
-                                                                                            Ok(0);
-                                                                                        match *graph_res
-                                                                                            {
-                                                                                            Ok(ref mut graph)
-                                                                                            =>
-                                                                                            match variable_table.get(&name)
+                                                                                        let result =
+                                                                                            match *graph_res
                                                                                                 {
-                                                                                                Some(id)
+                                                                                                Ok(ref mut graph)
                                                                                                 =>
-                                                                                                {
-                                                                                                    result
-                                                                                                        =
-                                                                                                        Ok(*id);
-                                                                                                }
-                                                                                                None
+                                                                                                match variable_table.get(&name)
+                                                                                                    {
+                                                                                                    Some(id)
+                                                                                                    =>
+                                                                                                    Ok(*id),
+                                                                                                    None
+                                                                                                    =>
+                                                                                                    result_err!(input
+                                                                                                                ,
+                                                                                                                state
+                                                                                                                ,
+                                                                                                                format
+                                                                                                                !
+                                                                                                                (
+                                                                                                                "Use of undefined variable \'{}\'"
+                                                                                                                ,
+                                                                                                                name
+                                                                                                                )),
+                                                                                                },
+                                                                                                Err(ref msg)
                                                                                                 =>
-                                                                                                {
-                                                                                                    let (line,
-                                                                                                         col) =
-                                                                                                        pos_to_line(input,
-                                                                                                                    state.max_err_pos);
-                                                                                                    result
-                                                                                                        =
-                                                                                                        Err(ParseError{line:
-                                                                                                                           line,
-                                                                                                                       column:
-                                                                                                                           col,
-                                                                                                                       offset:
-                                                                                                                           state.max_err_pos,
-                                                                                                                       expected:
-                                                                                                                           HashSet::new(),
-                                                                                                                       msg:
-                                                                                                                           Some(format!("Use of undefined variable \'{}\'"
-                                                                                                                                        ,
-                                                                                                                                        name)),});
-                                                                                                }
-                                                                                            },
-                                                                                            Err(ref msg)
-                                                                                            =>
-                                                                                            {
-                                                                                                result
-                                                                                                    =
-                                                                                                    Err(msg.clone());
-                                                                                            }
-                                                                                        }
+                                                                                                Err(msg.clone()),
+                                                                                            };
                                                                                         match result
                                                                                             {
                                                                                             Ok(var)
@@ -3194,83 +3127,50 @@ fn parse_indexedVar<'input>(input: &'input str, state: &mut ParseState,
                                                                                                                                                                                                                                                             &input[start_pos..pos];
                                                                                                                                                                                                                                                         Matched(pos,
                                                                                                                                                                                                                                                                 {
-                                                                                                                                                                                                                                                                    let mut result:
-                                                                                                                                                                                                                                                                            Result<usize,
-                                                                                                                                                                                                                                                                                   ParseError> =
-                                                                                                                                                                                                                                                                        Ok(0);
-                                                                                                                                                                                                                                                                    match *graph_res
-                                                                                                                                                                                                                                                                        {
-                                                                                                                                                                                                                                                                        Ok(ref mut graph)
-                                                                                                                                                                                                                                                                        =>
-                                                                                                                                                                                                                                                                        match variable_table.get(&name)
+                                                                                                                                                                                                                                                                    let result =
+                                                                                                                                                                                                                                                                        match *graph_res
                                                                                                                                                                                                                                                                             {
-                                                                                                                                                                                                                                                                            Some(id)
+                                                                                                                                                                                                                                                                            Ok(ref mut graph)
                                                                                                                                                                                                                                                                             =>
-                                                                                                                                                                                                                                                                            match graph.add_operation(Operator::SubIndex(*id,
-                                                                                                                                                                                                                                                                                                                         arg1,
-                                                                                                                                                                                                                                                                                                                         arg2,
-                                                                                                                                                                                                                                                                                                                         arg3,
-                                                                                                                                                                                                                                                                                                                         arg4))
+                                                                                                                                                                                                                                                                            match variable_table.get(&name)
                                                                                                                                                                                                                                                                                 {
-                                                                                                                                                                                                                                                                                Ok(var)
+                                                                                                                                                                                                                                                                                Some(id)
                                                                                                                                                                                                                                                                                 =>
-                                                                                                                                                                                                                                                                                {
-                                                                                                                                                                                                                                                                                    result
-                                                                                                                                                                                                                                                                                        =
-                                                                                                                                                                                                                                                                                        Ok(var);
-                                                                                                                                                                                                                                                                                }
-                                                                                                                                                                                                                                                                                Err(msg)
+                                                                                                                                                                                                                                                                                match graph.add_operation(Operator::SubIndex(*id,
+                                                                                                                                                                                                                                                                                                                             arg1,
+                                                                                                                                                                                                                                                                                                                             arg2,
+                                                                                                                                                                                                                                                                                                                             arg3,
+                                                                                                                                                                                                                                                                                                                             arg4))
+                                                                                                                                                                                                                                                                                    {
+                                                                                                                                                                                                                                                                                    Ok(var)
+                                                                                                                                                                                                                                                                                    =>
+                                                                                                                                                                                                                                                                                    Ok(var),
+                                                                                                                                                                                                                                                                                    Err(msg)
+                                                                                                                                                                                                                                                                                    =>
+                                                                                                                                                                                                                                                                                    result_err!(input
+                                                                                                                                                                                                                                                                                                ,
+                                                                                                                                                                                                                                                                                                state
+                                                                                                                                                                                                                                                                                                ,
+                                                                                                                                                                                                                                                                                                msg),
+                                                                                                                                                                                                                                                                                },
+                                                                                                                                                                                                                                                                                None
                                                                                                                                                                                                                                                                                 =>
-                                                                                                                                                                                                                                                                                {
-                                                                                                                                                                                                                                                                                    let (line,
-                                                                                                                                                                                                                                                                                         col) =
-                                                                                                                                                                                                                                                                                        pos_to_line(input,
-                                                                                                                                                                                                                                                                                                    state.max_err_pos);
-                                                                                                                                                                                                                                                                                    result
-                                                                                                                                                                                                                                                                                        =
-                                                                                                                                                                                                                                                                                        Err(ParseError{line:
-                                                                                                                                                                                                                                                                                                           line,
-                                                                                                                                                                                                                                                                                                       column:
-                                                                                                                                                                                                                                                                                                           col,
-                                                                                                                                                                                                                                                                                                       offset:
-                                                                                                                                                                                                                                                                                                           state.max_err_pos,
-                                                                                                                                                                                                                                                                                                       expected:
-                                                                                                                                                                                                                                                                                                           HashSet::new(),
-                                                                                                                                                                                                                                                                                                       msg:
-                                                                                                                                                                                                                                                                                                           Some(msg),});
-                                                                                                                                                                                                                                                                                }
+                                                                                                                                                                                                                                                                                result_err!(input
+                                                                                                                                                                                                                                                                                            ,
+                                                                                                                                                                                                                                                                                            state
+                                                                                                                                                                                                                                                                                            ,
+                                                                                                                                                                                                                                                                                            format
+                                                                                                                                                                                                                                                                                            !
+                                                                                                                                                                                                                                                                                            (
+                                                                                                                                                                                                                                                                                            "Use of undefined variable \'{}\'"
+                                                                                                                                                                                                                                                                                            ,
+                                                                                                                                                                                                                                                                                            name
+                                                                                                                                                                                                                                                                                            )),
                                                                                                                                                                                                                                                                             },
-                                                                                                                                                                                                                                                                            None
+                                                                                                                                                                                                                                                                            Err(ref msg)
                                                                                                                                                                                                                                                                             =>
-                                                                                                                                                                                                                                                                            {
-                                                                                                                                                                                                                                                                                let (line,
-                                                                                                                                                                                                                                                                                     col) =
-                                                                                                                                                                                                                                                                                    pos_to_line(input,
-                                                                                                                                                                                                                                                                                                state.max_err_pos);
-                                                                                                                                                                                                                                                                                result
-                                                                                                                                                                                                                                                                                    =
-                                                                                                                                                                                                                                                                                    Err(ParseError{line:
-                                                                                                                                                                                                                                                                                                       line,
-                                                                                                                                                                                                                                                                                                   column:
-                                                                                                                                                                                                                                                                                                       col,
-                                                                                                                                                                                                                                                                                                   offset:
-                                                                                                                                                                                                                                                                                                       state.max_err_pos,
-                                                                                                                                                                                                                                                                                                   expected:
-                                                                                                                                                                                                                                                                                                       HashSet::new(),
-                                                                                                                                                                                                                                                                                                   msg:
-                                                                                                                                                                                                                                                                                                       Some(format!("Use of undefined variable \'{}\'"
-                                                                                                                                                                                                                                                                                                                    ,
-                                                                                                                                                                                                                                                                                                                    name)),});
-                                                                                                                                                                                                                                                                            }
-                                                                                                                                                                                                                                                                        },
-                                                                                                                                                                                                                                                                        Err(ref msg)
-                                                                                                                                                                                                                                                                        =>
-                                                                                                                                                                                                                                                                        {
-                                                                                                                                                                                                                                                                            result
-                                                                                                                                                                                                                                                                                =
-                                                                                                                                                                                                                                                                                Err(msg.clone());
-                                                                                                                                                                                                                                                                        }
-                                                                                                                                                                                                                                                                    }
+                                                                                                                                                                                                                                                                            Err(msg.clone()),
+                                                                                                                                                                                                                                                                        };
                                                                                                                                                                                                                                                                     match result
                                                                                                                                                                                                                                                                         {
                                                                                                                                                                                                                                                                         Ok(var)
@@ -3400,7 +3300,7 @@ fn parse_varDotFunc<'input>(input: &'input str, state: &mut ParseState,
         {
             let seq_res = parse_ID(input, state, pos);
             match seq_res {
-                Matched(pos, var) => {
+                Matched(pos, name) => {
                     {
                         let seq_res = parse_DOT(input, state, pos);
                         match seq_res {
@@ -3434,86 +3334,53 @@ fn parse_varDotFunc<'input>(input: &'input str, state: &mut ParseState,
                                                                                     &input[start_pos..pos];
                                                                                 Matched(pos,
                                                                                         {
-                                                                                            let mut result:
-                                                                                                    Result<usize,
-                                                                                                           ParseError> =
-                                                                                                Ok(0);
-                                                                                            match *graph_res
-                                                                                                {
-                                                                                                Ok(ref mut graph)
-                                                                                                =>
-                                                                                                match variable_table.get(&var)
+                                                                                            let result =
+                                                                                                match *graph_res
                                                                                                     {
-                                                                                                    Some(id)
+                                                                                                    Ok(ref mut graph)
                                                                                                     =>
-                                                                                                    {
-                                                                                                        let mut newargs =
-                                                                                                            args.clone();
-                                                                                                        newargs.insert(0,
-                                                                                                                       *id);
-                                                                                                        match graph.string_to_operator(func,
-                                                                                                                                       newargs)
-                                                                                                            {
-                                                                                                            Ok(var)
-                                                                                                            =>
-                                                                                                            {
-                                                                                                                result
-                                                                                                                    =
-                                                                                                                    Ok(var);
-                                                                                                            }
-                                                                                                            Err(msg)
-                                                                                                            =>
-                                                                                                            {
-                                                                                                                let (line,
-                                                                                                                     col) =
-                                                                                                                    pos_to_line(input,
-                                                                                                                                state.max_err_pos);
-                                                                                                                result
-                                                                                                                    =
-                                                                                                                    Err(ParseError{line:
-                                                                                                                                       line,
-                                                                                                                                   column:
-                                                                                                                                       col,
-                                                                                                                                   offset:
-                                                                                                                                       state.max_err_pos,
-                                                                                                                                   expected:
-                                                                                                                                       HashSet::new(),
-                                                                                                                                   msg:
-                                                                                                                                       Some(msg),});
+                                                                                                    match variable_table.get(&name)
+                                                                                                        {
+                                                                                                        Some(id)
+                                                                                                        =>
+                                                                                                        {
+                                                                                                            let mut newargs =
+                                                                                                                args.clone();
+                                                                                                            newargs.insert(0,
+                                                                                                                           *id);
+                                                                                                            match graph.string_to_operator(func,
+                                                                                                                                           newargs)
+                                                                                                                {
+                                                                                                                Ok(var)
+                                                                                                                =>
+                                                                                                                Ok(var),
+                                                                                                                Err(msg)
+                                                                                                                =>
+                                                                                                                result_err!(input
+                                                                                                                            ,
+                                                                                                                            state
+                                                                                                                            ,
+                                                                                                                            msg),
                                                                                                             }
                                                                                                         }
-                                                                                                    }
-                                                                                                    None
+                                                                                                        None
+                                                                                                        =>
+                                                                                                        result_err!(input
+                                                                                                                    ,
+                                                                                                                    state
+                                                                                                                    ,
+                                                                                                                    format
+                                                                                                                    !
+                                                                                                                    (
+                                                                                                                    "Use of undefined variable \'{}\'"
+                                                                                                                    ,
+                                                                                                                    name
+                                                                                                                    )),
+                                                                                                    },
+                                                                                                    Err(ref msg)
                                                                                                     =>
-                                                                                                    {
-                                                                                                        let (line,
-                                                                                                             col) =
-                                                                                                            pos_to_line(input,
-                                                                                                                        state.max_err_pos);
-                                                                                                        result
-                                                                                                            =
-                                                                                                            Err(ParseError{line:
-                                                                                                                               line,
-                                                                                                                           column:
-                                                                                                                               col,
-                                                                                                                           offset:
-                                                                                                                               state.max_err_pos,
-                                                                                                                           expected:
-                                                                                                                               HashSet::new(),
-                                                                                                                           msg:
-                                                                                                                               Some(format!("Use of undefined variable \'{}\'"
-                                                                                                                                            ,
-                                                                                                                                            var)),});
-                                                                                                    }
-                                                                                                },
-                                                                                                Err(ref msg)
-                                                                                                =>
-                                                                                                {
-                                                                                                    result
-                                                                                                        =
-                                                                                                        Err(msg.clone());
-                                                                                                }
-                                                                                            }
+                                                                                                    Err(msg.clone()),
+                                                                                                };
                                                                                             match result
                                                                                                 {
                                                                                                 Ok(var)
@@ -3582,52 +3449,29 @@ fn parse_funcCall<'input>(input: &'input str, state: &mut ParseState,
                                                             &input[start_pos..pos];
                                                         Matched(pos,
                                                                 {
-                                                                    let mut result:
-                                                                            Result<usize,
-                                                                                   ParseError> =
-                                                                        Ok(0);
-                                                                    match *graph_res
-                                                                        {
-                                                                        Ok(ref mut graph)
-                                                                        =>
-                                                                        match graph.string_to_operator(func,
-                                                                                                       args)
+                                                                    let result =
+                                                                        match *graph_res
                                                                             {
-                                                                            Ok(var)
+                                                                            Ok(ref mut graph)
                                                                             =>
-                                                                            {
-                                                                                result
-                                                                                    =
-                                                                                    Ok(var);
-                                                                            }
-                                                                            Err(msg)
+                                                                            match graph.string_to_operator(func,
+                                                                                                           args)
+                                                                                {
+                                                                                Ok(var)
+                                                                                =>
+                                                                                Ok(var),
+                                                                                Err(msg)
+                                                                                =>
+                                                                                result_err!(input
+                                                                                            ,
+                                                                                            state
+                                                                                            ,
+                                                                                            msg),
+                                                                            },
+                                                                            Err(ref msg)
                                                                             =>
-                                                                            {
-                                                                                let (line,
-                                                                                     col) =
-                                                                                    pos_to_line(input,
-                                                                                                state.max_err_pos);
-                                                                                result
-                                                                                    =
-                                                                                    Err(ParseError{line:
-                                                                                                       line,
-                                                                                                   column:
-                                                                                                       col,
-                                                                                                   offset:
-                                                                                                       state.max_err_pos,
-                                                                                                   expected:
-                                                                                                       HashSet::new(),
-                                                                                                   msg:
-                                                                                                       Some(msg),});
-                                                                            }
-                                                                        },
-                                                                        Err(ref msg)
-                                                                        => {
-                                                                            result
-                                                                                =
-                                                                                Err(msg.clone());
-                                                                        }
-                                                                    }
+                                                                            Err(msg.clone()),
+                                                                        };
                                                                     match result
                                                                         {
                                                                         Ok(var)
@@ -4151,46 +3995,32 @@ fn parse_NUMBER<'input>(input: &'input str, state: &mut ParseState,
                                                             &input[start_pos..pos];
                                                         Matched(pos,
                                                                 {
-                                                                    let mut result:
-                                                                            Result<usize,
-                                                                                   ParseError> =
-                                                                        Ok(0);
-                                                                    match *graph_res
-                                                                        {
-                                                                        Ok(ref mut graph)
-                                                                        =>
-                                                                        match match_str.parse::<i64>()
+                                                                    let result =
+                                                                        match *graph_res
                                                                             {
-                                                                            Ok(value)
+                                                                            Ok(ref mut graph)
                                                                             =>
-                                                                            {
-                                                                                result
-                                                                                    =
-                                                                                    Ok(graph.add_int(value));
-                                                                            }
-                                                                            Err(_)
-                                                                            =>
-                                                                            match match_str.parse::<f64>()
+                                                                            match match_str.parse::<i64>()
                                                                                 {
                                                                                 Ok(value)
                                                                                 =>
-                                                                                {
-                                                                                    result
-                                                                                        =
-                                                                                        Ok(graph.add_float(value));
-                                                                                }
+                                                                                Ok(graph.add_int(value)),
                                                                                 Err(_)
                                                                                 =>
-                                                                                unreachable!(),
+                                                                                match match_str.parse::<f64>()
+                                                                                    {
+                                                                                    Ok(value)
+                                                                                    =>
+                                                                                    Ok(graph.add_float(value)),
+                                                                                    Err(_)
+                                                                                    =>
+                                                                                    unreachable!(),
+                                                                                },
                                                                             },
-                                                                        },
-                                                                        Err(ref msg)
-                                                                        => {
-                                                                            result
-                                                                                =
-                                                                                Err(msg.clone());
-                                                                        }
-                                                                    }
+                                                                            Err(ref msg)
+                                                                            =>
+                                                                            Err(msg.clone()),
+                                                                        };
                                                                     match result
                                                                         {
                                                                         Ok(var)

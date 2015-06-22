@@ -115,6 +115,10 @@ pub enum Type{
 	ParameterDerived
 }
 
+pub trait CodeGenerator{
+	
+}
+
 /// The main data structure of the `ComputeGraph`
 #[derive(Clone, Debug)]
 pub struct ComputeNode{
@@ -479,12 +483,13 @@ impl ComputeGraph{
 					let ch;
 					match self.nodes[args[1]] {
 						Some(ComputeNode{node_type: Type::Integer(x), id:_, name:_, ref children , op:_
-							, grad_level: _, inline:_, grad_child: _, grad_parent: _}) if x == 1 || x == 2 => {
+							, grad_level: _, inline:_, grad_child: _, grad_parent: _}) if x == 0 || x == 1 || x == 2 => {
 							val = x;
 							ch = children.len();
 						}
 						_ => return Err("The second argument for Sum is missing from the graph or is not 0,1 or 2.".to_string())
 					}
+					println!{"Using sum : {} {} {}", val, ch, args[1]}
 					if self.counter - 1 == args[1] && ch == 0 {
 						self.counter -= 1;
 						self.nodes.remove(self.counter);
@@ -504,7 +509,7 @@ impl ComputeGraph{
 					let ch;
 					match self.nodes[args[1]] {
 						Some(ComputeNode{node_type: Type::Integer(x), id:_, name:_, ref children , op:_
-							, grad_level: _, inline:_, grad_child: _, grad_parent: _}) if x == 1 || x == 2 => {
+							, grad_level: _, inline:_, grad_child: _, grad_parent: _}) if x == 0 || x == 1 || x == 2 => {
 							val = x;
 							ch = children.len();
 						}
@@ -529,7 +534,7 @@ impl ComputeGraph{
 					let ch;
 					match self.nodes[args[1]] {
 						Some(ComputeNode{node_type: Type::Integer(x), id:_, name:_, ref children , op:_
-							, grad_level: _, inline:_, grad_child: _, grad_parent: _}) if x == 1 || x == 2 => {
+							, grad_level: _, inline:_, grad_child: _, grad_parent: _}) if x == 0 || x == 1 || x == 2 => {
 							val = x;
 							ch = children.len();
 						}
@@ -548,6 +553,10 @@ impl ComputeGraph{
 				}
 				_ => Err("L1 takes exactly two arguments".to_string())
 			},
+			"dot" => match args.len() {
+				0 ... 1 => Err("Dot takes at least two arguments".to_string()),
+				_ => self.add_operation(Operator::Dot(args.clone())),
+			},
 			"horzcat" => match args.len() {
 				0 ... 1 => Err("HorzCat takes at least two arguments".to_string()),
 				_ => self.add_operation(Operator::HorzCat(args.clone())),
@@ -565,6 +574,15 @@ impl ComputeGraph{
 				_ => Err("Replicate takes exactly three arguments".to_string())
 			},
 			_ => Err("Unrecognised function name".to_string())
+		}
+	}
+
+	pub fn is_function_name(name: &str) -> bool{
+		match name{
+			"const" | "ones" | "zeros" | "eye" | "rows" | "cols" | "sign" | "inv" | "daigM" | "diagV" | "cos" 
+			| "sin" | "tan" | "cosh" | "sinh" | "tanh" | "abs"| "log" | "exp" | "sqrt" | "sq" | "rect" | "sigm" 
+			| "br" | "sum" | "l2" | "l1" | "dot" | "horzcat" | "vertcat"| "reshape" | "replicate" => true,
+			_ => false
 		}
 	}
 }
