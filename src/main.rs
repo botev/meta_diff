@@ -1,4 +1,3 @@
-#![feature(path_ext)] 
 pub mod core;
 pub mod codegen;
 extern crate rustc_serialize;
@@ -30,7 +29,7 @@ fn main() {
 }
 
 use std::io::{Read,Write};
-use std::fs::PathExt;
+//use std::fs::PathExt;
 fn main_proxy(args: Args) ->  Result<(), ProgramError> {
 	// Read source file
 	let mut source = String::new();
@@ -43,9 +42,10 @@ fn main_proxy(args: Args) ->  Result<(), ProgramError> {
 	let file_noextension = file_name.to_str().unwrap().split(".").nth(0).unwrap().to_string();
 	let mut directory = try!(std::env::current_dir());
 	directory.push(file_noextension.clone());
-	if !directory.as_path().exists() {
-		try!(std::fs::create_dir(directory.as_path()));
-	}
+	// if !directory.as_path().exists() {
+		// try!(std::fs::create_dir(directory.as_path()));
+	// }
+	let _ = std::fs::create_dir(directory.as_path());
 	// Parse source file
 	let graph = try!(core::parser::metaFile(&source));
 	// Print it to file
