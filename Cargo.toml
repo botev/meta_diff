@@ -9,3 +9,6 @@ name = "meta_diff"
 path = "src/main.rs"
 test = false
 
+[dependencies]
+docopt = "*"
+rustc-serialize = "*"

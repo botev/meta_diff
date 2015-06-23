@@ -115,10 +115,6 @@ pub enum Type{
 	ParameterDerived
 }
 
-pub trait CodeGenerator{
-	
-}
-
 /// The main data structure of the `ComputeGraph`
 #[derive(Clone, Debug)]
 pub struct ComputeNode{

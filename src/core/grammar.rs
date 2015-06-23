@@ -14,7 +14,7 @@ variable_table -> HashMap<String,usize> = {HashMap::new()}
 metaFile -> Result<ComputeGraph, ParseError> = functionDefinition {graph_res.clone()}
 
 /// Set the name of the graph add all outputs and set target to the first output
-functionDefinition = (eol / __)* FUNCTION __ outputs: functionReturn __? EQ __? main:ID __? mainParamList eol statementList END {
+functionDefinition = (eol / __)* FUNCTION __ outputs: functionReturn __? EQ __? main:ID __? mainParamList eol statementList END (eol / __)* {
 	let mut result : Result<(),ParseError> = Ok(());
 	match *graph_res{
 		Ok(ref mut graph) => {
