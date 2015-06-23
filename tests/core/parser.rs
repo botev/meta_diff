@@ -19,8 +19,7 @@ fn parse_fail(fail_msg: &str, source: &str){
 			assert!(false, "Fail parsed, but should have failed.");
 		}
 		Err(msg) => {
-			let text = format!("{}",msg);
-			assert!(text == fail_msg,format!("Parser failed message expected: {}, was: {}", fail_msg, msg));
+			assert!(format!("{}",msg) == fail_msg,format!("Parser failed message expected: {}, was: {}", fail_msg, msg));
 		}
 	}
 }

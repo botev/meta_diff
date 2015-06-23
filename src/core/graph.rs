@@ -132,9 +132,11 @@ pub struct ComputeNode{
 
 impl Display for ComputeNode{
 	fn fmt(&self, f : &mut Formatter) -> Result<(), Error> {
-		write!(f, concat!("********{}[{}]********\n", "Type:{:?}\n"
-			, "Operator: {:?}\n", "Children:{:?}")
-		, self.name, self.id, self.node_type, self.op, self.children)
+		write!(f, concat!("********{}[{}]********\n",
+			"Type:{:?}\n", 
+			"Operator: {:?}\n", 
+			"Children:{:?}"), 
+		self.name, self.id, self.node_type, self.op, self.children)
 	}
 }
 
@@ -176,22 +178,15 @@ pub struct ComputeGraph{
 
 impl Display for ComputeGraph{
 	fn fmt(&self, f : &mut Formatter) -> Result<(), Error> {
-		match write!(f, concat!("============Graph {}============\n", "Number of nodes:{}\n"
-			,"Target: {}\n", "Outputs:{:?}\n" , "============= Nodes =============\n")
-		, self.name, self.counter, self.target, self.outputs) {
-			Ok(_) => {},
-			Err(msg) => {return Err(msg)}
-		}
-		match self.nodes[0] {
-			Some(_) => {},
-			None => {}
-		}
+		try!(write!(f, concat!("============Graph {}============\n", 
+			"Number of nodes:{}\n",
+			"Target: {}\n", 
+			"Outputs:{:?}\n" , 
+			"============= Nodes =============\n"), 
+		self.name, self.counter, self.target, self.outputs));
 		for node_opt in self.nodes.iter(){
 			match *node_opt {
-				Some(ref node) => { match write!(f,"{}\n",node){
-					Ok(_) => {},
-					Err(msg) => {return Err(msg)}
-				};},
+				Some(ref node) => try!(write!(f,"{}\n",node)),
 				None => {}
 			}
 		}
@@ -485,7 +480,6 @@ impl ComputeGraph{
 						}
 						_ => return Err("The second argument for Sum is missing from the graph or is not 0,1 or 2.".to_string())
 					}
-					println!{"Using sum : {} {} {}", val, ch, args[1]}
 					if self.counter - 1 == args[1] && ch == 0 {
 						self.counter -= 1;
 						self.nodes.remove(self.counter);
