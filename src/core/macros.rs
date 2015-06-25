@@ -1,4 +1,35 @@
-#[macro_use]
+#[macro_export]
+macro_rules! apply_block {
+	($target:expr, $value:ident, $block: block) => {
+		{
+			for option in $target.iter(){
+				match *option{
+					None => (),
+					Some(ref $value) => {
+						match $block {
+							Ok(()) => (),
+							Err(msg) => return Err(msg)
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+// fn apply_func<T>(vector: Vec<T>, func: ){
+// 	for option in $target.iter(){
+// 		match *option{
+// 			None => (),
+// 			Some(ref $value) => {
+// 				match $block {
+// 					Ok(()) => (),
+// 					Err(msg) => return Err(msg)
+// 				}
+// 			}
+// 		}
+// 	}
+// }
 
 // #[macro_export]
 // macro_rules! parametarise_test { 
@@ -39,8 +70,6 @@
 // 	}
 // 	};
 // }
-
-
 
 #[macro_export]
 macro_rules! result_err {

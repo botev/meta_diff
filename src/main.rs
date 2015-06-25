@@ -1,23 +1,36 @@
-pub mod core;
-pub mod codegen;
+#[macro_use]
+extern crate log;
 extern crate rustc_serialize;
 extern crate docopt;
+#[macro_use]
+pub mod core;
+pub mod codegen;
 
-static USAGE: &'static str = "
-Usage: meta_diff <source> 
+static USAGE: &'static str = "Meta Diff
+
+Usage: 
+meta_diff <source> 
 meta_diff --help
+meta_diff --version
 
 Options:
--h, --help     Show this usage message.
+-h --help     Show this usage message.
+-v --version  Show the version and exit.
 ";
 
 #[derive(RustcDecodable, Debug)]
 struct Args {
 	arg_source: String,
+	flag_version: bool
 }
 
 fn main() {
 	let args: Args = docopt::Docopt::new(USAGE).and_then(|d| d.decode()).unwrap_or_else(|e| e.exit());
+	if args.flag_version{
+		println!("Meta Diff version {}.{}.{}",0,0,1);
+		std::process::exit(0);
+	}
+
 	match main_proxy(args){
 		Ok(_) => (),
 		Err(err) => {
@@ -48,12 +61,19 @@ fn main_proxy(args: Args) ->  Result<(), ProgramError> {
 	let _ = std::fs::create_dir(directory.as_path());
 	// Parse source file
 	let graph = try!(core::parser::metaFile(&source));
-	// Print it to file
-	directory.push(file_noextension + "_cmd.txt");
+	// Print cmd
+	directory.push(file_noextension.clone() + ".txt");
 	let file = try!(std::fs::File::create(directory.as_path()));
 	let mut writer = std::io::BufWriter::new(&file);
 	try!(writer.write_fmt(format_args!("{}\n",graph)));
 	directory.pop();
+	// Print graphviz
+	directory.push(file_noextension.clone() + ".dot");
+	let file = try!(std::fs::File::create(directory.as_path()));
+	let mut writer = std::io::BufWriter::new(&file);
+	try!(codegen::graphviz::write_graphviz(&mut writer as &mut std::io::Write, &graph));
+	directory.pop();
+
 	Ok(())
 }
 

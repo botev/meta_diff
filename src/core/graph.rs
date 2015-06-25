@@ -1,6 +1,8 @@
 use std::fmt::{Display, Formatter, Error};
-
+use std::string::ToString;
+use std::collections::HashMap;
 /// The `Dimension` type which represents any dimension up to the number of supported ones
+
 #[derive(Copy, Clone, Debug)]
 pub enum Dimension{
 	First,
@@ -98,6 +100,46 @@ pub enum Operator {
 	Replicate(usize,usize,usize),
 }
 
+impl Operator {
+	pub fn get_parents(&self) -> Vec<usize> {
+		let mut parents = Vec::new();
+		match *self{
+			Operator::Const(parent_id) |  Operator::Eye(parent_id) | Operator::Size(parent_id, _) 
+			| Operator::Sign(parent_id) | Operator::Neg(parent_id) | Operator::Div(parent_id) | Operator::MatrixInverse(parent_id)
+			| Operator::Transpose(parent_id) | Operator::MatrixDiag(parent_id) | Operator::VectorDiag(parent_id) 
+			| Operator::Cos(parent_id) | Operator::Sin(parent_id) | Operator::Tan(parent_id) 
+			| Operator::CosH(parent_id) | Operator::SinH(parent_id) | Operator::TanH(parent_id) 
+			| Operator::Abs(parent_id) | Operator::Log(parent_id) | Operator::Exp(parent_id) 
+			| Operator::Sqrt(parent_id) | Operator::Square(parent_id) | Operator::Rect(parent_id) 
+			| Operator::Sigmoid(parent_id) | Operator::Sum(parent_id,_)  
+			| Operator::L2(parent_id,_) | Operator::L1(parent_id,_)=> {
+				parents.push(parent_id);
+			},
+			Operator::Ones(parent_id1, parent_id2) | Operator::Zeros(parent_id1, parent_id2)
+			| Operator::Broadcast(parent_id1,_, parent_id2) | Operator::Pow(parent_id1, parent_id2) => {
+				parents.push(parent_id1);
+				parents.push(parent_id2);
+			},
+			 
+			
+			Operator::Add(ref parent_ids) | Operator::Mul(ref parent_ids) | Operator::Dot(ref parent_ids) 
+			| Operator::HorzCat(ref parent_ids) | Operator::VertCat(ref parent_ids) => {
+				parents = parent_ids.clone();
+			},
+			Operator::SubIndex(parent_id, _, _, _, _) => {
+				parents.push(parent_id);
+			},
+			Operator::Reshape(parent_id, _, _) | Operator::Replicate(parent_id, _, _) => {
+				parents.push(parent_id);
+			},
+		}
+		parents
+	}
+}
+
+impl ToString for Operator{
+	fn to_string(&self) -> String {format!("{:?}", self)}
+}
 /// Represents the five types any `ComputeNode` can be
 #[derive(Clone, Debug)]
 pub enum Type{
@@ -118,16 +160,16 @@ pub enum Type{
 /// The main data structure of the `ComputeGraph`
 #[derive(Clone, Debug)]
 pub struct ComputeNode{
-	id: usize,
-	node_type: Type,
-	name: String,
-	children: Vec<usize>,
-	grad_level: u8,
-	inline: bool, 
+	pub id: usize,
+	pub node_type: Type,
+	pub name: String,
+	pub children: Vec<usize>,
+	pub grad_level: u8,
+	pub inline: bool, 
 	// dims: Pair<SymPolynomial>,
 	grad_child: Option<usize>,
-	grad_parent: Option<usize>,
-	op: Option<Operator>
+	grad_parents: Vec<usize>,
+	pub op: Option<Operator>
 }
 
 impl Display for ComputeNode{
@@ -142,7 +184,7 @@ impl Display for ComputeNode{
 
 impl ComputeNode{
 	/// Creates a new empty `ComputeNode`, its name depends on the input type and gradient level
-	fn new(id: usize, node_type: Type, grad_level: u8, op: Option<Operator>) -> Self{
+	pub fn new(id: usize, node_type: Type, grad_level: u8, op: Option<Operator>) -> Self{
 		let name: &str;
 		if grad_level > 0{
 			name = "AutoGrad"; 
@@ -157,7 +199,8 @@ impl ComputeNode{
 				Type::ParameterDerived => name = "ParamDer"
 			}
 		}
-		ComputeNode{id: id, node_type: node_type, name: name.to_string(), children: Vec::new(), grad_level: grad_level, inline: false, grad_child: None, grad_parent: None, op:op}
+		ComputeNode{id: id, node_type: node_type, name: name.to_string(), children: Vec::new(), 
+			grad_level: grad_level, inline: false, grad_child: None, grad_parents: Vec::new(), op:op}
 	}
 }
 
@@ -349,6 +392,365 @@ impl ComputeGraph{
 		return Ok(self.counter-1);
 	}
 
+	/// Applies a gradient operator to the graph give the current target
+	pub fn gradient(&mut self) -> Result<(),String>{
+		match self.nodes[self.target]{
+			Some(ref node) => match node.node_type {
+				Type::Parameter | Type::ParameterDerived => (),
+				_ => return Ok(())
+			},
+			None => return Err("Target is None".to_string())
+		}
+		self.grad_level += 1;
+		let mut messages : HashMap<usize, Vec<usize>> = HashMap::new();
+		let mut span : Vec<bool> = self.nodes.iter().cloned().map(|_| false).collect::<Vec<bool>>();
+		span.push(true);
+		span.swap_remove(self.target);
+		messages.insert(self.target, vec![self.add_int(1)]);
+		for i in (0..self.target + 1).rev(){
+			// Skip if the node is not in the spanning tree of the target 
+			if !span[i] {
+				continue;
+			}		
+			// Get the gradient of the current node
+			let gradient = match messages.remove(&i) {
+				Some(vec) => match vec.len() {
+					0 => return Err(format!("No incoming messages found for node {}", i)),
+					1 => vec[0],
+					_ => try!(self.add_operation(Operator::Add(vec))),
+				},
+				None => return Err(format!("No incoming messages found for node {}", i))
+			};
+			// Connect the gradient info and the parent
+			try!(self.get_mut_node(gradient)).grad_parents.push(i);
+			try!(self.get_mut_node(i)).grad_child = Some(gradient);
+			// Generate gradient messages
+			let grad_msgs = try!(self.op_gradient(i, gradient));
+			for (parent, msg) in grad_msgs{
+				// Mark that that the parent is in the sapnning tree
+				span.push(true);
+				span.swap_remove(parent);
+				// Add message to his incomings
+				let mut mine = match messages.remove(&parent) {
+					None => Vec::new(),
+					Some(vec) => vec
+				};
+				mine.push(msg);
+				messages.insert(parent,mine);
+			}
+		}
+		Ok(())
+	}
+
+	/// Generates gradient messages from the operator to all of its non constant parents.
+	/// Returns a HashMap<parent,msg>
+	fn op_gradient(&mut self, child: usize, grad: usize) -> Result<HashMap<usize,usize>, String>{
+		let mut gradients : HashMap<usize,usize> = HashMap::new();
+		let op = match try!(self.get_node(child)).op {
+				None => {return Ok(gradients);},
+				Some(ref op) => op.clone()
+			};
+		match op{
+			Operator::Const(_) | Operator::Ones(_,_) | Operator::Zeros(_,_)
+			| Operator::Eye(_) | Operator::Size(_, _)| Operator::Sign(_) => 
+				return Err("Can not take gradient with respect to constant operator".to_string()),
+			Operator::Neg(parent) => {
+					let msg = try!(self.add_operation(Operator::Neg(grad)));
+					gradients.insert(parent, msg);
+			},
+			Operator::Div(parent) => {
+				let mut msg = try!(self.add_operation(Operator::Square(parent)));
+				msg = try!(self.add_operation(Operator::Div(msg)));
+				msg = try!(self.add_operation(Operator::Neg(msg)));
+				msg = try!(self.add_operation(Operator::Mul(vec![grad,msg])));
+				gradients.insert(parent, msg);
+			},
+			Operator::MatrixInverse(parent) => if try!(self.is_dependable(parent)){
+				// TODO
+				()
+			},
+			Operator::Transpose(parent) => {
+					let msg = try!(self.add_operation(Operator::Transpose(grad)));
+					gradients.insert(parent, msg);
+			},
+			Operator::MatrixDiag(parent) => {
+					let msg = try!(self.add_operation(Operator::VectorDiag(grad)));
+					gradients.insert(parent, msg);
+			},
+			Operator::VectorDiag(parent) => {
+					let msg = try!(self.add_operation(Operator::MatrixDiag(grad)));
+					gradients.insert(parent, msg);
+			},
+			Operator::Cos(parent) => {
+					let mut msg = try!(self.add_operation(Operator::Sin(parent)));
+					msg = try!(self.add_operation(Operator::Neg(msg)));
+					msg = try!(self.add_operation(Operator::Mul(vec![grad,msg])));
+					gradients.insert(parent, msg);
+			},
+			Operator::Sin(parent) => {
+					let mut msg = try!(self.add_operation(Operator::Cos(parent)));
+					msg = try!(self.add_operation(Operator::Mul(vec![grad,msg])));
+					gradients.insert(parent, msg);
+			},
+			Operator::Tan(parent) => {
+					let mut msg = try!(self.add_operation(Operator::Cos(parent)));
+					msg = try!(self.add_operation(Operator::Square(msg)));
+					msg = try!(self.add_operation(Operator::Div(msg)));
+					msg = try!(self.add_operation(Operator::Mul(vec![grad,msg])));
+					gradients.insert(parent, msg);
+			},
+			Operator::CosH(parent) =>{
+					let mut msg = try!(self.add_operation(Operator::SinH(parent)));
+					msg = try!(self.add_operation(Operator::Mul(vec![grad,msg])));
+					gradients.insert(parent, msg);
+			},
+			Operator::SinH(parent) => {
+					let mut msg = try!(self.add_operation(Operator::CosH(parent)));
+					msg = try!(self.add_operation(Operator::Mul(vec![grad,msg])));
+					gradients.insert(parent, msg);
+			},
+			Operator::TanH(parent) => {
+					let mut msg = try!(self.add_operation(Operator::Square(child)));
+					msg = try!(self.add_operation(Operator::Neg(msg)));
+					let const1 = self.add_int(1);
+					msg = try!(self.add_operation(Operator::Add(vec![const1, msg])));
+					msg = try!(self.add_operation(Operator::Mul(vec![grad,msg])));
+					gradients.insert(parent, msg);
+			},
+			Operator::Abs(parent) => {
+					let mut msg = try!(self.add_operation(Operator::Sign(parent)));
+					msg = try!(self.add_operation(Operator::Mul(vec![grad,msg])));
+					gradients.insert(parent, msg);
+			},
+			Operator::Log(parent) =>{
+					let mut msg = try!(self.add_operation(Operator::Div(parent)));
+					msg = try!(self.add_operation(Operator::Mul(vec![grad,msg])));
+					gradients.insert(parent, msg);
+			},
+			Operator::Exp(parent) =>{
+					let msg = try!(self.add_operation(Operator::Mul(vec![grad,child])));
+					gradients.insert(parent, msg);			},
+			Operator::Sqrt(parent) => {
+					let mut const2 = self.add_int(2);		
+					const2 = try!(self.add_operation(Operator::Div(const2)));		
+					let mut msg = try!(self.add_operation(Operator::Div(child)));
+					msg = try!(self.add_operation(Operator::Mul(vec![const2, msg, grad])));
+					gradients.insert(parent, msg);
+			},
+			Operator::Square(parent) =>{
+					let const2 = self.add_int(2);					
+					let msg = try!(self.add_operation(Operator::Mul(vec![const2, parent, grad])));
+					gradients.insert(parent, msg);
+			},
+			Operator::Rect(parent) => {
+				// TODO
+				()
+			},
+			Operator::Sigmoid(parent) => {
+					let const1 = self.add_int(1);					
+					let mut msg = try!(self.add_operation(Operator::Neg(child)));
+					msg = try!(self.add_operation(Operator::Add(vec![const1, msg])));
+					msg = try!(self.add_operation(Operator::Mul(vec![grad, child, msg])));
+					gradients.insert(parent, msg);
+			},
+			Operator::Broadcast(parent,_,_) => {
+				//TODO
+
+			},
+			Operator::Sum(parent,dim) => {
+				match dim{
+					Dimension::First => {
+						let rows = try!(self.add_operation(Operator::Size(parent, Dimension::First)));
+						let cols = self.add_int(1);
+						let msg = try!(self.add_operation(Operator::Replicate(grad, cols, rows)));
+						gradients.insert(parent, msg);
+					}
+					Dimension::Second => {
+						let rows = self.add_int(1);
+						let cols = try!(self.add_operation(Operator::Size(parent, Dimension::Second)));				
+						let msg = try!(self.add_operation(Operator::Replicate(grad, cols, rows)));
+						gradients.insert(parent, msg);
+					}
+					Dimension::All => {
+						let rows = try!(self.add_operation(Operator::Size(parent, Dimension::First)));
+						let cols = try!(self.add_operation(Operator::Size(parent, Dimension::Second)));				
+						let msg = try!(self.add_operation(Operator::Replicate(grad, cols, rows)));
+						gradients.insert(parent, msg);
+					}
+				}
+			},
+			Operator::L2(parent,dim) => {
+				match dim{
+					Dimension::First => {
+						let const2 = self.add_int(2);					
+						let mut msg = try!(self.add_operation(Operator::Broadcast(grad,Dimension::First,0)));
+						msg = try!(self.add_operation(Operator::Mul(vec![const2, parent, msg])));
+						gradients.insert(parent, msg);
+					}
+					Dimension::Second => {
+						let const2 = self.add_int(2);					
+						let mut msg = try!(self.add_operation(Operator::Broadcast(grad,Dimension::Second,0)));
+						msg = try!(self.add_operation(Operator::Mul(vec![const2, parent, msg])));
+						gradients.insert(parent, msg);
+					}
+					Dimension::All => {
+						let const2 = self.add_int(2);					
+						let msg = try!(self.add_operation(Operator::Mul(vec![const2, parent, grad])));
+						gradients.insert(parent, msg);
+					}
+				}
+			},
+			Operator::L1(parent,dim) => {
+				match dim{
+					Dimension::First => {			
+						let mut msg = try!(self.add_operation(Operator::Sign(parent)));
+						let msg2 = try!(self.add_operation(Operator::Broadcast(grad,Dimension::First,0)));
+						msg = try!(self.add_operation(Operator::Mul(vec![msg2,msg])));
+						gradients.insert(parent, msg);
+					}
+					Dimension::Second => {
+						let mut msg = try!(self.add_operation(Operator::Sign(parent)));				
+						let msg2 = try!(self.add_operation(Operator::Broadcast(grad,Dimension::Second,0)));
+						msg = try!(self.add_operation(Operator::Mul(vec![msg2,msg])));
+						gradients.insert(parent, msg);
+					}
+					Dimension::All => {
+						let mut msg = try!(self.add_operation(Operator::Sign(parent)));
+						msg = try!(self.add_operation(Operator::Mul(vec![grad,msg])));
+						gradients.insert(parent, msg);
+					}
+				}
+			},
+			Operator::Add(ref parents) => {
+				for i in parents{
+					if try!(self.is_dependable(*i)) {
+						gradients.insert(*i, grad);
+					}
+				}
+			},
+			Operator::Mul(ref parents) => {
+				match parents.len(){
+					0...1 => return Err("Multiplication with less than 2 parents".to_string()),
+					2 => {
+						let p1 = parents.get(0).unwrap();
+						let p2 = parents.get(1).unwrap();
+						if try!(self.is_dependable(*p1)) {
+							let msg = try!(self.add_operation(Operator::Mul(vec![*p2, grad])));
+							gradients.insert(*p1, msg);
+						}
+						if try!(self.is_dependable(*p2)) {
+							let msg = try!(self.add_operation(Operator::Mul(vec![*p1, grad])));
+							gradients.insert(*p2, msg);
+						}
+					},
+					_ => {
+						for i in parents{
+							if try!(self.is_dependable(*i)) {
+								let mut msg = try!(self.add_operation(Operator::Div(*i)));
+								msg = try!(self.add_operation(Operator::Mul(vec![msg ,child, grad])));
+								gradients.insert(*i, msg);
+							}
+						}
+					}
+				}
+			},
+			Operator::Dot(ref parents) => {
+				match parents.len(){
+					0...1 => return Err("Multiplication with less than 2 parents".to_string()),
+					2 => {
+						let p1 = parents.get(0).unwrap();
+						let p2 = parents.get(1).unwrap();
+						if try!(self.is_dependable(*p1)) {
+							let mut msg = try!(self.add_operation(Operator::Transpose(*p2)));
+							msg = try!(self.add_operation(Operator::Dot(vec![grad, msg])));
+							gradients.insert(*p1, msg);
+						}
+						if try!(self.is_dependable(*p2)) {
+							let mut msg = try!(self.add_operation(Operator::Transpose(*p1)));
+							msg = try!(self.add_operation(Operator::Dot(vec![msg, grad])));
+							gradients.insert(*p1, msg);
+						}
+					},
+					_ => {
+						// TODO
+						()
+					}
+				}
+			},
+			Operator::Pow(p1, p2) => {	
+				if try!(self.is_dependable(p1)) {
+					let mut msg = try!(self.add_operation(Operator::Div(p1)));
+					msg = try!(self.add_operation(Operator::Mul(vec![grad, p2, child, msg])));
+					gradients.insert(p1, msg);
+				}
+				if try!(self.is_dependable(p2)) {
+					let mut msg = try!(self.add_operation(Operator::Log(p1)));
+					msg = try!(self.add_operation(Operator::Mul(vec![grad, child, msg])));
+					gradients.insert(p1, msg);
+				}
+			},
+			Operator::HorzCat(ref parents) => {
+				match parents.len(){
+					0...1 => return Err("Multiplication with less than 2 parents".to_string()),
+					2 => {
+						// TODO 
+						()
+					},
+					_ => {
+						// TODO
+						()
+					}
+				}
+			},
+			Operator::VertCat(ref parents) => {
+				match parents.len(){
+					0...1 => return Err("Multiplication with less than 2 parents".to_string()),
+					2 => {
+						// TODO 
+						()
+					},
+					_ => {
+						// TODO
+						()
+					}
+				}
+			},
+			Operator::SubIndex(parent, arg1, arg2, arg3, arg4) => {
+				// TODO 
+				()
+			},
+			Operator::Reshape(parent, arg1, arg2) => {
+				let rows = try!(self.add_operation(Operator::Size(parent, Dimension::First)));
+				let cols = try!(self.add_operation(Operator::Size(parent, Dimension::Second)));				
+				let msg = try!(self.add_operation(Operator::Reshape(grad, rows, cols)));
+				gradients.insert(parent, msg);
+			},
+			Operator::Replicate(parent, arg1, arg2) => {
+				// TODO 
+				()
+			},
+		}
+		Ok(gradients)
+	}
+
+	#[inline(always)]
+	fn get_mut_node(&mut self, index: usize) -> Result<&mut ComputeNode, String>{
+		try!(self.nodes.get_mut(index).ok_or("The index is out of bounds")).as_mut().ok_or(format!("The requested node {} is None", index))
+	}
+
+	#[inline(always)]
+	fn get_node(&mut self, index: usize) -> Result<& ComputeNode, String>{
+		try!(self.nodes.get(index).ok_or("The index is out of bounds")).as_ref().ok_or(format!("The requested node {} is None", index))
+	}
+
+	#[inline(always)]
+	fn is_dependable(&mut self, index: usize) -> Result<bool, String> {
+		match try!(self.get_node(index)).node_type.clone(){
+			Type::Parameter | Type::ParameterDerived => Ok(true),
+			_ => Ok(false)
+		}
+	}
+
 	pub fn string_to_operator(&mut self , name: String, args: Vec<usize>) -> Result<usize,String>{
 		match &name[..]{
 			"const" => match args.len() {
@@ -449,7 +851,7 @@ impl ComputeGraph{
 					let ch;
 					match self.nodes[args[1]] {
 						Some(ComputeNode{node_type: Type::Integer(x), id:_, name:_, ref children , op:_
-							, grad_level: _, inline:_, grad_child: _, grad_parent: _}) if x == 1 || x == 2 => {
+							, grad_level: _, inline:_, grad_child: _, grad_parents: _}) if x == 1 || x == 2 => {
 							val = x;
 							ch = children.len();
 						}
@@ -474,7 +876,7 @@ impl ComputeGraph{
 					let ch;
 					match self.nodes[args[1]] {
 						Some(ComputeNode{node_type: Type::Integer(x), id:_, name:_, ref children , op:_
-							, grad_level: _, inline:_, grad_child: _, grad_parent: _}) if x == 0 || x == 1 || x == 2 => {
+							, grad_level: _, inline:_, grad_child: _, grad_parents: _}) if x == 0 || x == 1 || x == 2 => {
 							val = x;
 							ch = children.len();
 						}
@@ -499,7 +901,7 @@ impl ComputeGraph{
 					let ch;
 					match self.nodes[args[1]] {
 						Some(ComputeNode{node_type: Type::Integer(x), id:_, name:_, ref children , op:_
-							, grad_level: _, inline:_, grad_child: _, grad_parent: _}) if x == 0 || x == 1 || x == 2 => {
+							, grad_level: _, inline:_, grad_child: _, grad_parents: _}) if x == 0 || x == 1 || x == 2 => {
 							val = x;
 							ch = children.len();
 						}
@@ -524,7 +926,7 @@ impl ComputeGraph{
 					let ch;
 					match self.nodes[args[1]] {
 						Some(ComputeNode{node_type: Type::Integer(x), id:_, name:_, ref children , op:_
-							, grad_level: _, inline:_, grad_child: _, grad_parent: _}) if x == 0 || x == 1 || x == 2 => {
+							, grad_level: _, inline:_, grad_child: _, grad_parents: _}) if x == 0 || x == 1 || x == 2 => {
 							val = x;
 							ch = children.len();
 						}
@@ -575,4 +977,7 @@ impl ComputeGraph{
 			_ => false
 		}
 	}
+
 }
+
+
