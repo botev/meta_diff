@@ -1,8 +1,5 @@
-#[macro_use]
-extern crate log;
 extern crate rustc_serialize;
 extern crate docopt;
-#[macro_use]
 pub mod core;
 pub mod codegen;
 
@@ -42,45 +39,56 @@ fn main() {
 }
 
 use std::io::{Read,Write};
-//use std::fs::PathExt;
 fn main_proxy(args: Args) ->  Result<(), ProgramError> {
 	// Read source file
 	let mut source = String::new();
 	let path = std::path::Path::new(&args.arg_source);
 	let mut file = try!(std::fs::File::open(&path));
 	try!(file.read_to_string(&mut source));
+	
 	// Set up output directory
 	let file_name = try!(path.file_name().ok_or(std::io::Error::new(std::io::ErrorKind::InvalidInput
 		, "The file given does not exist or is a directory.")));
 	let file_noextension = file_name.to_str().unwrap().split(".").nth(0).unwrap().to_string();
 	let mut directory = try!(std::env::current_dir());
 	directory.push(file_noextension.clone());
-	// if !directory.as_path().exists() {
-		// try!(std::fs::create_dir(directory.as_path()));
-	// }
 	let _ = std::fs::create_dir(directory.as_path());
+	
 	// Parse source file
-	let graph = try!(core::parser::metaFile(&source));
-	// Print cmd
-	directory.push(file_noextension.clone() + ".txt");
+	let mut graph = try!(core::parseMetaFile(&source));
+	// Print initial
+	try!(print_graph(&graph, &mut directory, &file_noextension));
+	// Gradient
+	try!(graph.gradient());
+	try!(print_graph(&graph, &mut directory, &(file_noextension.clone() + "_grad")));
+	// Print graphviz gradient
+	try!(graph.gradient());
+	directory.push(file_noextension.clone() + "_grad.dot");
+	Ok(())
+}
+
+fn print_graph(graph: & core::graph::ComputeGraph, directory: &mut std::path::PathBuf, name: &String) -> Result<(), ProgramError>{
+	// Print cmd graph
+	directory.push(name.clone() + ".txt");
 	let file = try!(std::fs::File::create(directory.as_path()));
 	let mut writer = std::io::BufWriter::new(&file);
 	try!(writer.write_fmt(format_args!("{}\n",graph)));
 	directory.pop();
+
 	// Print graphviz
-	directory.push(file_noextension.clone() + ".dot");
+	directory.push(name.clone() + ".dot");
 	let file = try!(std::fs::File::create(directory.as_path()));
 	let mut writer = std::io::BufWriter::new(&file);
-	try!(codegen::graphviz::write_graphviz(&mut writer as &mut std::io::Write, &graph));
+	try!(codegen::write_graphviz(&mut writer as &mut std::io::Write, &graph));
 	directory.pop();
-
 	Ok(())
 }
 
 #[derive(Debug)]
 enum ProgramError {
 	Io(std::io::Error),
-	Parse(core::parser::ParseError),
+	Parse(core::ParseError),
+	Other(String)
 }
 
 impl From<std::io::Error> for ProgramError {
@@ -89,9 +97,15 @@ impl From<std::io::Error> for ProgramError {
 	}
 }
 
-impl From<core::parser::ParseError> for ProgramError {
-	fn from(err: core::parser::ParseError) -> ProgramError {
+impl From<core::ParseError> for ProgramError {
+	fn from(err: core::ParseError) -> ProgramError {
 		ProgramError::Parse(err)
+	}
+}
+
+impl From<String> for ProgramError {
+	fn from(err: String) -> ProgramError {
+		ProgramError::Other(err)
 	}
 }
 
@@ -100,6 +114,7 @@ impl std::fmt::Display for ProgramError {
 		match *self {
 			ProgramError::Io(ref err) => err.fmt(f),
 			ProgramError::Parse(ref err) => err.fmt(f),
+			ProgramError::Other(ref err) => err.fmt(f),
 		}
 	}
 }

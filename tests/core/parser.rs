@@ -1,7 +1,7 @@
 extern crate meta_diff;
 
 fn parse_ok(nodes: usize, source: &str){
-	let result = meta_diff::core::parser::metaFile(source);
+	let result = meta_diff::core::parseMetaFile(source);
 	match result {
 		Ok(graph) => {
 			assert!(graph.nodes.len() == nodes, "Number of nodes expected: {}, was: {}", nodes, graph.nodes.len());
@@ -13,7 +13,7 @@ fn parse_ok(nodes: usize, source: &str){
 }
 
 fn parse_fail(fail_msg: &str, source: &str){
-	let result = meta_diff::core::parser::metaFile(source);
+	let result = meta_diff::core::parseMetaFile(source);
 	match result {
 		Ok(_) => {
 			assert!(false, "Fail parsed, but should have failed.");

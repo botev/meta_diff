@@ -12,4 +12,3 @@ test = false
 [dependencies]
 docopt = "*"
 rustc-serialize = "*"
-log = "*"

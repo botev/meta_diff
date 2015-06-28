@@ -22,15 +22,18 @@ functionDefinition = (eol / __)* FUNCTION __ outputs: functionReturn __? EQ __? 
 			for output in outputs.iter(){
 				match variable_table.get(output){
 					Some(id) => {
+						// println!("Target {} is {}", output, *id);
 						graph.outputs.push(*id);
 					},
 					None => {
 						result = result_err!(input, state, 
 						format!("Output variable \'{}\' has not been defined", output)); 
+						// println!("{:?}", result);
 						break;
 					}
 				}
 			}
+			graph.target = graph.outputs[0];
 		},
 		Err(ref msg) => {result = Err(msg.clone());}
 	}
@@ -472,4 +475,15 @@ __  = [ \t\u{00A0}\u{FEFF}\u{1680}\u{180E}\u{2000}-\u{200A}\u{202F}\u{205F}\u{30
 //                    offset: state.max_err_pos,
 //                    expected: state.expected,
 //                    msg: None,})
+// }
+
+
+// macro_rules! result_err {
+// 	($input:ident , $state:ident , $msg:expr) => {
+// 		{
+// 			let (line, col) = pos_to_line($input, $state.max_err_pos);	
+// 			Err(ParseError{line: line, column: col, offset: $state.max_err_pos, 
+// 				expected: HashSet::new(), msg: Some($msg)})
+// 		}
+// 	};
 // }
