@@ -1,15 +1,15 @@
 use std::io::{Write, Error};
 use std::result::Result;
-use super::super::core::graph::*;
+use core::graph::*;
 
-static HEADING: &'static str = 
+static HEADING: &'static str =
 "digraph G{
-	ranksep=.75; 
-	node [shape=box, fontsize=16, style=filled]; 
-	subgraph cluster_0{ 
+	ranksep=.75;
+	node [shape=box, fontsize=16, style=filled];
+	subgraph cluster_0{
 		label=\"Forward Calculations\";
 ";
-static MIDDLE: &'static str = 
+static MIDDLE: &'static str =
 "	}
 	subgraph cluster_1{
 		label=\"Gradient Calculations\";
@@ -29,10 +29,7 @@ pub fn write_graphviz(fmt: &mut Write, graph: & ComputeGraph) -> Result<(),Error
 				if value.grad_level != 0 {
 					continue;
 				}
-				if value.id == target {
-					write_node(fmt, value, &value.name, "green", "ellipse")
-				}
-				else if outputs.contains(&value.id){
+				if outputs.contains(&value.id){
 					write_node(fmt, value, &value.name, "red", "ellipse")
 				}
 				else {
@@ -101,7 +98,7 @@ pub fn write_graphviz(fmt: &mut Write, graph: & ComputeGraph) -> Result<(),Error
 		}
 	}
 	try!(write!(fmt, "{}", "}\n"));
-	Ok(())	
+	Ok(())
 }
 
 #[inline(always)]

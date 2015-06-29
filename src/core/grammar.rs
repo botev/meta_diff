@@ -1,5 +1,5 @@
-use super::graph::*;
 use std::collections::{HashMap, HashSet};
+use core::graph::*;
 
 #[context]
 graph_res -> Result<ComputeGraph, ParseError> = {Ok(ComputeGraph::new())}
@@ -26,8 +26,8 @@ functionDefinition = (eol / __)* FUNCTION __ outputs: functionReturn __? EQ __? 
 						graph.outputs.push(*id);
 					},
 					None => {
-						result = result_err!(input, state, 
-						format!("Output variable \'{}\' has not been defined", output)); 
+						result = result_err!(input, state,
+						format!("Output variable \'{}\' has not been defined", output));
 						// println!("{:?}", result);
 						break;
 					}
@@ -52,7 +52,7 @@ mainParamList = LPAREN __? inputVar ++ (__? COMMA) __? RPAREN
 /// Add all of the inputs to the variable table and in to the graph
 inputVar = param: AT? name:ID {
 	if ComputeGraph::is_function_name(&name) {
-		*graph_res = result_err!(input, state, 
+		*graph_res = result_err!(input, state,
 					format!("Can not have a variable with name \'{}\' since it is a built in function", name))
 	}
 	else{
@@ -64,7 +64,7 @@ inputVar = param: AT? name:ID {
 			Err(_) => (),
 		}
 	}
-} 
+}
 
 /// Only match pattern
 statementList = ((eol / comment/ __)* statement)* (eol / comment/ __)*
@@ -74,7 +74,7 @@ statement = name: ID __? EQ __? id:expression __? SEMI {
 	let result = match *graph_res{
 		Ok(ref mut graph) => {
 			if ComputeGraph::is_function_name(&name) {
-				result_err!(input, state, 
+				result_err!(input, state,
 					format!("Can not have a variable with name \'{}\' since it is a built in function", name))
 			}
 			else{
@@ -113,7 +113,7 @@ expression	-> usize = vars: e1 ++ (__? g1 __?) {
 	}
 }
 
-/// Addition or subtraction, however subtraction in the graph is represented as 
+/// Addition or subtraction, however subtraction in the graph is represented as
 /// addition and unary negation
 e1	-> usize = first: e2 rest:( __? op:g2 __? var:e2 {
 	let result = match *graph_res{
@@ -136,7 +136,7 @@ e1	-> usize = first: e2 rest:( __? op:g2 __? var:e2 {
 		Ok(ref mut graph) => match rest.len() {
 			0 => Ok(first),
 			_ => {
-				let mut vars = vec![first]; 
+				let mut vars = vec![first];
 				vars.extend(rest);
 				match graph.add_operation(Operator::Add(vars)) {
 					Ok(var) => Ok(var),
@@ -152,7 +152,7 @@ e1	-> usize = first: e2 rest:( __? op:g2 __? var:e2 {
 	}
 }
 
-/// Multiplication and division, however division in the graph is represented as 
+/// Multiplication and division, however division in the graph is represented as
 /// multiplication and unary division
 e2	-> usize = first: e3 rest:( __? op:g3 __? var:e3  {
 	let result = match *graph_res{
@@ -175,7 +175,7 @@ e2	-> usize = first: e3 rest:( __? op:g3 __? var:e3  {
 		Ok(ref mut graph) => match rest.len() {
 			0 => Ok(first),
 			_ => {
-				let mut vars = vec![first]; 
+				let mut vars = vec![first];
 				vars.extend(rest);
 				match graph.add_operation(Operator::Mul(vars)) {
 					Ok(var) => Ok(var),
@@ -283,7 +283,7 @@ baseExpression -> usize = NUMBER /  indexedVar / varDotFunc / funcCall / name:ID
 }
 
 /// Index a variable - var[arg1,arg2,arg3,arg4]
-indexedVar -> usize =  name: ID LSBRACE __? arg1: expression __? COMMA __? arg2:expression __? COMMA __? 
+indexedVar -> usize =  name: ID LSBRACE __? arg1: expression __? COMMA __? arg2:expression __? COMMA __?
 arg3:expression __? COMMA __? arg4:expression __? RSBRACE {
 	let result = match *graph_res{
 		Ok(ref mut graph) => match variable_table.get(&name) {
@@ -307,7 +307,7 @@ varDotFunc -> usize = name:ID DOT func:ID args:paramList {
 		Ok(ref mut graph) => match variable_table.get(&name){
 			Some(id) => {
 				let mut newargs = args.clone();
-				newargs.insert(0,*id); 
+				newargs.insert(0,*id);
 				match graph.string_to_operator(func, newargs) {
 					Ok(var) => Ok(var),
 					Err(msg) => result_err!(input, state, msg)
@@ -481,8 +481,8 @@ __  = [ \t\u{00A0}\u{FEFF}\u{1680}\u{180E}\u{2000}-\u{200A}\u{202F}\u{205F}\u{30
 // macro_rules! result_err {
 // 	($input:ident , $state:ident , $msg:expr) => {
 // 		{
-// 			let (line, col) = pos_to_line($input, $state.max_err_pos);	
-// 			Err(ParseError{line: line, column: col, offset: $state.max_err_pos, 
+// 			let (line, col) = pos_to_line($input, $state.max_err_pos);
+// 			Err(ParseError{line: line, column: col, offset: $state.max_err_pos,
 // 				expected: HashSet::new(), msg: Some($msg)})
 // 		}
 // 	};

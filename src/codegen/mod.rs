@@ -1,4 +1,3 @@
-extern crate std;
 mod eigen;
 mod matlab;
 mod graphviz;

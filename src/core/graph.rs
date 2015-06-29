@@ -73,9 +73,9 @@ pub enum Operator {
 	Square(usize),
 	/// `Unary` operator representing elementwise rectifier : max(x,0)
 	Sigmoid(usize),
-	/// `Unary` operator representing elementwise max 
+	/// `Unary` operator representing elementwise max
 	Max(usize, usize),
-	/// `Unary` operator representing elementwise max 
+	/// `Unary` operator representing elementwise max
 	Min(usize, usize),
 	// /// `Unary` operator that represents the broadcasting of the first argument
 	// /// along the dimension of the second argument with respect to the third.
@@ -118,48 +118,6 @@ pub enum Operator {
 	ReplicateVert(usize,usize)
 }
 
-impl Operator {
-	// pub fn get_parents(&self) -> Vec<usize> {
-	// 	let mut parents = Vec::new();
-	// 	match *self{
-	// 		Operator::Const(parent_id) |  Operator::Eye(parent_id) | Operator::Size(parent_id, _) 
-	// 		| Operator::Sign(parent_id) | Operator::Neg(parent_id) | Operator::Div(parent_id) 
-	// 		| Operator::MatrixInverse(parent_id) | Operator::Transpose(parent_id) | Operator::MatrixDiag(parent_id) 
-	// 		| Operator::VectorDiag(parent_id) | Operator::Cos(parent_id) | Operator::Sin(parent_id) 
-	// 		| Operator::Tan(parent_id) | Operator::CosH(parent_id) | Operator::SinH(parent_id) 
-	// 		| Operator::TanH(parent_id) | Operator::Abs(parent_id) | Operator::Log(parent_id) 
-	// 		| Operator::Exp(parent_id) | Operator::Sqrt(parent_id) | Operator::Square(parent_id) 
-	// 		| Operator::Rect(parent_id) | Operator::Sigmoid(parent_id) | Operator::Sum(parent_id,_) 
-	// 		| Operator::L2(parent_id,_) | Operator::L1(parent_id,_) | Operator::Broadcast(parent_id, _)=> {
-	// 			parents.push(parent_id);
-	// 		},
-	// 		Operator::Ones(parent_id1, parent_id2) | Operator::Zeros(parent_id1, parent_id2)
-	// 		| LessThan(parent_id1, pare)
-	// /// `Constant` logical operator
-	// LessThanOrEqual(usize, usize)
-	// /// `Constant` logical operator
-	// GreaterThan(usize, usize)
-	// /// `Constant` logical operator
-	// GreaterThanOrEqual(usize, usize)
-	// 		| Operator::Pow(parent_id1, parent_id2) => {
-	// 			parents.push(parent_id1);
-	// 			parents.push(parent_id2);
-	// 		},			
-	// 		Operator::Add(ref parent_ids) | Operator::Mul(ref parent_ids) | Operator::Dot(ref parent_ids) 
-	// 		| Operator::HorzCat(ref parent_ids) | Operator::VertCat(ref parent_ids) => {
-	// 			parents = parent_ids.clone();
-	// 		},
-	// 		Operator::SubIndex(parent_id, _, _, _, _) | Operator::SubAssign(parent_id, _, _, _, _) => {
-	// 			parents.push(parent_id);
-	// 		},
-	// 		Operator::Reshape(parent_id, _, _) | Operator::Replicate(parent_id, _, _) => {
-	// 			parents.push(parent_id);
-	// 		},
-	// 	}
-	// 	parents
-	// }
-}
-
 impl ToString for Operator{
 	fn to_string(&self) -> String {format!("{:?}", self)}
 }
@@ -188,7 +146,7 @@ pub struct ComputeNode{
 	pub name: String,
 	pub children: Vec<usize>,
 	pub grad_level: u8,
-	pub inline: bool, 
+	pub inline: bool,
 	// dims: Pair<SymPolynomial>,
 	pub grad_child: Option<usize>,
 	pub grad_parents: Vec<usize>,
@@ -198,9 +156,9 @@ pub struct ComputeNode{
 impl Display for ComputeNode{
 	fn fmt(&self, f : &mut Formatter) -> Result<(), Error> {
 		write!(f, concat!("********{}[{}]********\n",
-			"Type:{:?}\n", 
-			"Operator: {:?}\n", 
-			"Children:{:?}"), 
+			"Type:{:?}\n",
+			"Operator: {:?}\n",
+			"Children:{:?}"),
 		self.name, self.id, self.node_type, self.op, self.children)
 	}
 }
@@ -210,7 +168,7 @@ impl ComputeNode{
 	pub fn new(id: usize, node_type: Type, grad_level: u8, op: Option<Operator>) -> Self{
 		let name: &str;
 		if grad_level > 0{
-			name = "AutoGrad"; 
+			name = "AutoGrad";
 		}
 		else {
 			match node_type {
@@ -222,7 +180,7 @@ impl ComputeNode{
 				Type::ParameterDerived => name = "ParamDer"
 			}
 		}
-		ComputeNode{id: id, node_type: node_type, name: name.to_string(), children: Vec::new(), 
+		ComputeNode{id: id, node_type: node_type, name: name.to_string(), children: Vec::new(),
 			grad_level: grad_level, inline: false, grad_child: None, grad_parents: Vec::new(), op:op}
 	}
 }
@@ -244,11 +202,11 @@ pub struct ComputeGraph{
 
 impl Display for ComputeGraph{
 	fn fmt(&self, f : &mut Formatter) -> Result<(), Error> {
-		try!(write!(f, concat!("============Graph {}============\n", 
+		try!(write!(f, concat!("============Graph {}============\n",
 			"Number of nodes:{}\n",
-			"Target: {}\n", 
-			"Outputs:{:?}\n" , 
-			"============= Nodes =============\n"), 
+			"Target: {}\n",
+			"Outputs:{:?}\n" ,
+			"============= Nodes =============\n"),
 		self.name, self.counter, self.target, self.outputs));
 		for node_opt in self.nodes.iter(){
 			match *node_opt {
@@ -304,7 +262,7 @@ impl ComputeGraph{
 	pub fn add_operation(&mut self, op : Operator) -> Result<usize, String>{
 		let mut node_type = Type::ConstDerived;
 		match op{
-			Operator::Const(parent_id) |  Operator::Eye(parent_id) | Operator::Size(parent_id, _) 
+			Operator::Const(parent_id) |  Operator::Eye(parent_id) | Operator::Size(parent_id, _)
 			| Operator::Sign(parent_id)=> {
 				match * &mut self.nodes[parent_id]{
 					Some(ref mut parent) => {
@@ -326,12 +284,12 @@ impl ComputeGraph{
 				}
 			},
 			Operator::Neg(parent_id) | Operator::Div(parent_id) | Operator::MatrixInverse(parent_id)
-			| Operator::Transpose(parent_id) | Operator::MatrixDiag(parent_id) | Operator::VectorDiag(parent_id) 
-			| Operator::Cos(parent_id) | Operator::Sin(parent_id) | Operator::Tan(parent_id) 
-			| Operator::CosH(parent_id) | Operator::SinH(parent_id) | Operator::TanH(parent_id) 
-			| Operator::Abs(parent_id) | Operator::Log(parent_id) | Operator::Exp(parent_id) 
-			| Operator::Sqrt(parent_id) | Operator::Square(parent_id) 
-			| Operator::Sigmoid(parent_id) | Operator::Sum(parent_id,_)  
+			| Operator::Transpose(parent_id) | Operator::MatrixDiag(parent_id) | Operator::VectorDiag(parent_id)
+			| Operator::Cos(parent_id) | Operator::Sin(parent_id) | Operator::Tan(parent_id)
+			| Operator::CosH(parent_id) | Operator::SinH(parent_id) | Operator::TanH(parent_id)
+			| Operator::Abs(parent_id) | Operator::Log(parent_id) | Operator::Exp(parent_id)
+			| Operator::Sqrt(parent_id) | Operator::Square(parent_id)
+			| Operator::Sigmoid(parent_id) | Operator::Sum(parent_id,_)
 			| Operator::L2(parent_id,_) | Operator::L1(parent_id,_) => { //| Operator::Broadcast(parent_id,_) => {
 				match * &mut self.nodes[parent_id]{
 					Some(ref mut parent) => {
@@ -344,7 +302,7 @@ impl ComputeGraph{
 					None => return Err("Trying to access deleted node!".to_string())
 				}
 			},
-			Operator::Pow(parent_id1, parent_id2) | Operator::Quadratic(parent_id1, parent_id2) 
+			Operator::Pow(parent_id1, parent_id2) | Operator::Quadratic(parent_id1, parent_id2)
 			| Operator::Max(parent_id1, parent_id2) | Operator::Min(parent_id1, parent_id2) => {
 				match * &mut self.nodes[parent_id1]{
 					Some(ref mut parent) => {
@@ -367,7 +325,7 @@ impl ComputeGraph{
 					None => return Err("Trying to access deleted node!".to_string())
 				}
 			},
-			Operator::Add(ref parent_ids) | Operator::Mul(ref parent_ids) | Operator::Dot(ref parent_ids) 
+			Operator::Add(ref parent_ids) | Operator::Mul(ref parent_ids) | Operator::Dot(ref parent_ids)
 			| Operator::HorzCat(ref parent_ids) | Operator::VertCat(ref parent_ids) => {
 				for parent_id in parent_ids.iter().cloned(){
 					match * &mut self.nodes[parent_id]{
@@ -382,7 +340,7 @@ impl ComputeGraph{
 					}
 				}
 			},
-			Operator::SubIndex(parent_id, arg_id1, arg_id2, arg_id3, arg_id4) | 
+			Operator::SubIndex(parent_id, arg_id1, arg_id2, arg_id3, arg_id4) |
 			Operator::SubAssign(parent_id, arg_id1, arg_id2, arg_id3, arg_id4) => {
 				let ids = [parent_id, arg_id1, arg_id2, arg_id3, arg_id4];
 				for parent_id in &ids{
@@ -449,10 +407,10 @@ impl ComputeGraph{
 		span.swap_remove(self.target);
 		messages.insert(self.target, vec![self.add_int(1)]);
 		for i in (0..self.target + 1).rev(){
-			// Skip if the node is not in the spanning tree of the target 
+			// Skip if the node is not in the spanning tree of the target
 			if !span[i] {
 				continue;
-			}		
+			}
 			// Get the gradient of the current node
 			let gradient = match messages.remove(&i) {
 				Some(vec) => match vec.len() {
@@ -508,9 +466,9 @@ impl ComputeGraph{
 		};
 		match op{
 			Operator::Const(_) | Operator::Ones(_, _) | Operator::Zeros(_, _)
-			| Operator::Eye(_) | Operator::Size(_, _)| Operator::Sign(_) 
+			| Operator::Eye(_) | Operator::Size(_, _)| Operator::Sign(_)
 			| Operator::LessThan(_, _)| Operator::LessThanOrEqual(_, _)
-			| Operator::GreaterThan(_, _)| Operator::GreaterThanOrEqual(_, _) => 
+			| Operator::GreaterThan(_, _)| Operator::GreaterThanOrEqual(_, _) =>
 			return Err("Can not take gradient with respect to constant operator".to_string()),
 			Operator::Neg(parent) => {
 				let msg = try!(self.add_operation(Operator::Neg(grad)));
@@ -525,10 +483,9 @@ impl ComputeGraph{
 			},
 			Operator::MatrixInverse(parent) => if try!(self.is_dependable(parent)){
 				let mut msg = try!(self.add_operation(Operator::Transpose(child)));
-				let cols = try!(self.add_operation(Operator::Size(parent, Dimension::First)));
-				let j = try!(self.add_operation(Operator::Ones(cols,cols)));
-				msg = try!(self.add_operation(Operator::Dot(vec![child, j, msg])));
+				msg = try!(self.add_operation(Operator::Dot(vec![msg, grad, msg])));
 				msg = try!(self.add_operation(Operator::Neg(msg)));
+				gradients.insert(parent, msg);
 			},
 			Operator::Transpose(parent) => {
 				let msg = try!(self.add_operation(Operator::Transpose(grad)));
@@ -554,7 +511,7 @@ impl ComputeGraph{
 				gradients.insert(parent, msg);
 			},
 			Operator::Tan(parent) => {
-				let mut msg = try!(self.add_operation(Operator::Cos(parent)));
+				   let mut msg = try!(self.add_operation(Operator::Cos(parent)));
 				msg = try!(self.add_operation(Operator::Square(msg)));
 				msg = try!(self.add_operation(Operator::Div(msg)));
 				msg = try!(self.add_operation(Operator::Mul(vec![grad,msg])));
@@ -564,7 +521,7 @@ impl ComputeGraph{
 				let mut msg = try!(self.add_operation(Operator::SinH(parent)));
 				msg = try!(self.add_operation(Operator::Mul(vec![grad,msg])));
 				gradients.insert(parent, msg);
-			},
+				},
 			Operator::SinH(parent) => {
 				let mut msg = try!(self.add_operation(Operator::CosH(parent)));
 				msg = try!(self.add_operation(Operator::Mul(vec![grad,msg])));
@@ -590,17 +547,17 @@ impl ComputeGraph{
 			},
 			Operator::Exp(parent) =>{
 				let msg = try!(self.add_operation(Operator::Mul(vec![grad,child])));
-				gradients.insert(parent, msg);			
+				gradients.insert(parent, msg);
 			},
 			Operator::Sqrt(parent) => {
-				let mut const2 = self.add_int(2);		
-				const2 = try!(self.add_operation(Operator::Div(const2)));		
+				let mut const2 = self.add_int(2);
+				const2 = try!(self.add_operation(Operator::Div(const2)));
 				let mut msg = try!(self.add_operation(Operator::Div(child)));
 				msg = try!(self.add_operation(Operator::Mul(vec![const2, msg, grad])));
 				gradients.insert(parent, msg);
 			},
 			Operator::Square(parent) =>{
-				let const2 = self.add_int(2);					
+				let const2 = self.add_int(2);
 				let msg = try!(self.add_operation(Operator::Mul(vec![const2, parent, grad])));
 				gradients.insert(parent, msg);
 			},
@@ -637,14 +594,14 @@ impl ComputeGraph{
 				}
 			},
 			Operator::Sigmoid(parent) => {
-				let const1 = self.add_int(1);					
+				let const1 = self.add_int(1);
 				let mut msg = try!(self.add_operation(Operator::Neg(child)));
 				msg = try!(self.add_operation(Operator::Add(vec![const1, msg])));
 				msg = try!(self.add_operation(Operator::Mul(vec![grad, child, msg])));
 				gradients.insert(parent, msg);
 			},
 			// Operator::Broadcast(parent,dim) => {
-			// 	
+			//
 			// },
 			Operator::Sum(parent,dim) => {
 				match dim{
@@ -654,15 +611,15 @@ impl ComputeGraph{
 						gradients.insert(parent, msg);
 					}
 					Dimension::Second => {
-						let cols = try!(self.add_operation(Operator::Size(parent, Dimension::Second)));				
+						let cols = try!(self.add_operation(Operator::Size(parent, Dimension::Second)));
 						let msg = try!(self.add_operation(Operator::ReplicateHorz(grad, cols)));
 						gradients.insert(parent, msg);
 					}
 					Dimension::All => {
 						let rows = try!(self.add_operation(Operator::Size(parent, Dimension::First)));
-						let cols = try!(self.add_operation(Operator::Size(parent, Dimension::Second)));				
+						let cols = try!(self.add_operation(Operator::Size(parent, Dimension::Second)));
 						let mut msg = try!(self.add_operation(Operator::ReplicateVert(grad, rows)));
-						let mut msg = try!(self.add_operation(Operator::ReplicateHorz(grad, cols)));
+						msg = try!(self.add_operation(Operator::ReplicateHorz(msg, cols)));
 						gradients.insert(parent, msg);
 					}
 				}
@@ -670,21 +627,21 @@ impl ComputeGraph{
 			Operator::L2(parent,dim) => {
 				match dim{
 					Dimension::First => {
-						let const2 = self.add_int(2);					
+						let const2 = self.add_int(2);
 						let rows = try!(self.add_operation(Operator::Size(parent, Dimension::First)));
 						let mut msg = try!(self.add_operation(Operator::ReplicateVert(grad,rows)));
 						msg = try!(self.add_operation(Operator::Mul(vec![const2, parent, msg])));
 						gradients.insert(parent, msg);
 					}
 					Dimension::Second => {
-						let const2 = self.add_int(2);					
+						let const2 = self.add_int(2);
 						let cols = try!(self.add_operation(Operator::Size(parent, Dimension::Second)));
 						let mut msg = try!(self.add_operation(Operator::ReplicateHorz(grad,cols)));
 						msg = try!(self.add_operation(Operator::Mul(vec![const2, parent, msg])));
 						gradients.insert(parent, msg);
 					}
 					Dimension::All => {
-						let const2 = self.add_int(2);				
+						let const2 = self.add_int(2);
 						let msg = try!(self.add_operation(Operator::Mul(vec![const2, parent, grad])));
 						gradients.insert(parent, msg);
 					}
@@ -692,7 +649,7 @@ impl ComputeGraph{
 			},
 			Operator::L1(parent,dim) => {
 				match dim{
-					Dimension::First => {			
+					Dimension::First => {
 						let msg_s = try!(self.add_operation(Operator::Sign(parent)));
 						let rows = try!(self.add_operation(Operator::Size(parent, Dimension::First)));
 						let mut msg = try!(self.add_operation(Operator::ReplicateVert(grad,rows)));
@@ -700,7 +657,7 @@ impl ComputeGraph{
 						gradients.insert(parent, msg);
 					}
 					Dimension::Second => {
-						let msg_s = try!(self.add_operation(Operator::Sign(parent)));				
+						let msg_s = try!(self.add_operation(Operator::Sign(parent)));
 						let cols = try!(self.add_operation(Operator::Size(parent, Dimension::Second)));
 						let mut msg = try!(self.add_operation(Operator::ReplicateHorz(grad,cols)));
 						msg = try!(self.add_operation(Operator::Mul(vec![msg_s,msg])));
@@ -828,7 +785,7 @@ impl ComputeGraph{
 					}
 				}
 			},
-			Operator::Pow(p1, p2) => {	
+			Operator::Pow(p1, p2) => {
 				if try!(self.is_dependable(p1)) {
 					let mut msg = try!(self.add_operation(Operator::Div(p1)));
 					msg = try!(self.add_operation(Operator::Mul(vec![grad, p2, child, msg])));
@@ -840,7 +797,7 @@ impl ComputeGraph{
 					gradients.insert(p1, msg);
 				}
 			},
-			Operator::Quadratic(p1, p2) => {	
+			Operator::Quadratic(p1, p2) => {
 				if try!(self.is_dependable(p1)) {
 					let mut msg = try!(self.add_operation(Operator::Transpose(p2)));
 					msg = try!(self.add_operation(Operator::Add(vec![p2, msg])));
@@ -856,57 +813,62 @@ impl ComputeGraph{
 			Operator::HorzCat(ref parents) => {
 				match parents.len(){
 					0...1 => return Err("Multiplication with less than 2 parents".to_string()),
-					2 => {
-						let p1 = parents.get(0).unwrap();
-						let p2 = parents.get(1).unwrap();
-						if try!(self.is_dependable(*p1)) {
-							let start_x = self.add_int(0);
-							let size_x =  try!(self.add_operation(Operator::Size(child, Dimension::First)));
-							let start_y = self.add_int(0);
-							let size_y = try!(self.add_operation(Operator::Size(*p1, Dimension::Second)));
-							let msg = try!(self.add_operation(Operator::SubIndex(grad,start_x, size_x, start_y, size_y)));
-							gradients.insert(*p1, msg);
-						}
-						if try!(self.is_dependable(*p2)) {
-							let start_x = self.add_int(0);
-							let size_x =  try!(self.add_operation(Operator::Size(child, Dimension::First)));
-							let start_y = try!(self.add_operation(Operator::Size(*p1, Dimension::Second)));
-							let size_y = try!(self.add_operation(Operator::Size(*p2, Dimension::Second)));
-							let msg = try!(self.add_operation(Operator::SubIndex(grad,start_x, size_x, start_y, size_y)));
-							gradients.insert(*p2, msg);
-						} 
-					},
 					_ => {
-						unimplemented!()
+						let mut last : usize = parents.len() + 1;
+						for i in (0..parents.len()).rev(){
+							if try!(self.is_dependable(parents[i])) {
+								last = i;
+								break;
+							}
+						}
+						if last < parents.len(){
+							let const_0 = self.add_int(0);
+							let size_x =  try!(self.add_operation(Operator::Size(child, Dimension::First)));
+							let mut accum = self.add_int(0);
+							for i in 0..last+1{
+								let p = parents[i];
+								let size_y = try!(self.add_operation(Operator::Size(p, Dimension::Second)));
+								if try!(self.is_dependable(p)) {
+									let start_y = accum;
+									let msg = try!(self.add_operation(Operator::SubIndex(grad, const_0, size_x, start_y, size_y)));
+									gradients.insert(p, msg);
+								}
+								if i < last{
+									accum = try!(self.add_operation(Operator::Add(vec![accum, size_y])));
+								}
+							}
+						}
 					}
 				}
 			},
 			Operator::VertCat(ref parents) => {
 				match parents.len(){
 					0...1 => return Err("Multiplication with less than 2 parents".to_string()),
-					2 => {
-						let p1 = parents.get(0).unwrap();
-						let p2 = parents.get(1).unwrap();
-						if try!(self.is_dependable(*p1)) {
-							let start_x = self.add_int(0);
-							let size_x =  try!(self.add_operation(Operator::Size(*p1, Dimension::First)));
-							let start_y = self.add_int(0);
-							let size_y = try!(self.add_operation(Operator::Size(child, Dimension::Second)));
-							let msg = try!(self.add_operation(Operator::SubIndex(grad,start_x, size_x, start_y, size_y)));
-							gradients.insert(*p1, msg);
-						}
-						if try!(self.is_dependable(*p2)) {
-							let start_x = try!(self.add_operation(Operator::Size(*p1, Dimension::First)));
-							let size_x =  try!(self.add_operation(Operator::Size(*p2, Dimension::First)));
-							let start_y = self.add_int(0);
-							let size_y = try!(self.add_operation(Operator::Size(child, Dimension::Second)));
-							let msg = try!(self.add_operation(Operator::SubIndex(grad,start_x, size_x, start_y, size_y)));
-							gradients.insert(*p2, msg);
-						} 
-						()
-					},
 					_ => {
-						unimplemented!()
+						let mut last : usize = parents.len() + 1;
+						for i in (0..parents.len()).rev(){
+							if try!(self.is_dependable(parents[i])) {
+								last = i;
+								break;
+							}
+						}
+						if last < parents.len(){
+							let const_0 = self.add_int(0);
+							let size_y =  try!(self.add_operation(Operator::Size(child, Dimension::Second)));
+							let mut accum = self.add_int(0);
+							for i in 0..last+1{
+								let p = parents[i];
+								let size_x = try!(self.add_operation(Operator::Size(p, Dimension::First)));
+								if try!(self.is_dependable(p)) {
+									let start_x = accum;
+									let msg = try!(self.add_operation(Operator::SubIndex(grad, start_x, size_x, const_0, size_y)));
+									gradients.insert(p, msg);
+								}
+								if i < last{
+									accum = try!(self.add_operation(Operator::Add(vec![accum, size_x])));
+								}
+							}
+						}
 					}
 				}
 			},
@@ -916,19 +878,19 @@ impl ComputeGraph{
 			},
 			Operator::SubAssign(parent, arg1, arg2, arg3, arg4) => {
 				let msg = try!(self.add_operation(Operator::SubIndex(grad, arg1, arg2, arg3, arg4)));
-				gradients.insert(parent, msg);		
+				gradients.insert(parent, msg);
 			},
-			Operator::Reshape(parent, arg1, arg2) => {
+			Operator::Reshape(parent, _, _) => {
 				let rows = try!(self.add_operation(Operator::Size(parent, Dimension::First)));
-				let cols = try!(self.add_operation(Operator::Size(parent, Dimension::Second)));				
+				let cols = try!(self.add_operation(Operator::Size(parent, Dimension::Second)));
 				let msg = try!(self.add_operation(Operator::Reshape(grad, rows, cols)));
 				gradients.insert(parent, msg);
 			},
-			Operator::ReplicateHorz(parent, arg) => {
+			Operator::ReplicateHorz(parent, _) => {
 				let msg = try!(self.add_operation(Operator::Sum(grad, Dimension::Second)));
 				gradients.insert(parent, msg);
 			},
-			Operator::ReplicateVert(parent, arg) => {
+			Operator::ReplicateVert(parent, _) => {
 				let msg = try!(self.add_operation(Operator::Sum(grad, Dimension::First)));
 				gradients.insert(parent, msg);
 			},
@@ -1049,14 +1011,12 @@ impl ComputeGraph{
 			},
 			"max" => match args.len() {
 				2 => {
-					let extra = self.add_int(0);
 					self.add_operation(Operator::Max(args[0], args[1]))
 				},
 				_ => Err("Max takes exactly two arguments".to_string())
 			},
 			"min" => match args.len() {
 				2 => {
-					let extra = self.add_int(0);
 					self.add_operation(Operator::Min(args[0], args[1]))
 				},
 				_ => Err("Max takes exactly two arguments".to_string())
@@ -1085,7 +1045,7 @@ impl ComputeGraph{
 			// 			2 => self.add_operation(Operator::Broadcast(args[0], Dimension::Second)),
 			// 			_ => return Err("Broadcast takes as an argument only 1 or 2".to_string())
 			// 		}
-			// 	},			
+			// 	},
 			// 	_ => return Err("Broadcast takes exactly two arguments".to_string())
 			// },
 			"sum" => match args.len() {
@@ -1193,13 +1153,11 @@ impl ComputeGraph{
 
 	pub fn is_function_name(name: &str) -> bool{
 		match name{
-			"const" | "ones" | "zeros" | "eye" | "rows" | "cols" | "sign" | "inv" | "daigM" | "diagV" | "cos" 
-			| "sin" | "tan" | "cosh" | "sinh" | "tanh" | "abs"| "log" | "exp" | "sqrt" | "sq" | "rect" | "sigm" 
+			"const" | "ones" | "zeros" | "eye" | "rows" | "cols" | "sign" | "inv" | "daigM" | "diagV" | "cos"
+			| "sin" | "tan" | "cosh" | "sinh" | "tanh" | "abs"| "log" | "exp" | "sqrt" | "sq" | "rect" | "sigm"
 			| "br" | "sum" | "l2" | "l1" | "dot" | "horzcat" | "vertcat"| "reshape" | "replicate" => true,
 			_ => false
 		}
 	}
 
 }
-
-

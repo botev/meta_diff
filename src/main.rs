@@ -1,12 +1,11 @@
+extern crate meta_diff;
 extern crate rustc_serialize;
 extern crate docopt;
-pub mod core;
-pub mod codegen;
 
 static USAGE: &'static str = "Meta Diff
 
-Usage: 
-meta_diff <source> 
+Usage:
+meta_diff <source>
 meta_diff --help
 meta_diff --version
 
@@ -27,7 +26,6 @@ fn main() {
 		println!("Meta Diff version {}.{}.{}",0,0,1);
 		std::process::exit(0);
 	}
-
 	match main_proxy(args){
 		Ok(_) => (),
 		Err(err) => {
@@ -45,7 +43,7 @@ fn main_proxy(args: Args) ->  Result<(), ProgramError> {
 	let path = std::path::Path::new(&args.arg_source);
 	let mut file = try!(std::fs::File::open(&path));
 	try!(file.read_to_string(&mut source));
-	
+
 	// Set up output directory
 	let file_name = try!(path.file_name().ok_or(std::io::Error::new(std::io::ErrorKind::InvalidInput
 		, "The file given does not exist or is a directory.")));
@@ -53,9 +51,9 @@ fn main_proxy(args: Args) ->  Result<(), ProgramError> {
 	let mut directory = try!(std::env::current_dir());
 	directory.push(file_noextension.clone());
 	let _ = std::fs::create_dir(directory.as_path());
-	
+
 	// Parse source file
-	let mut graph = try!(core::parseMetaFile(&source));
+	let mut graph = try!(meta_diff::core::parseMetaFile(&source));
 	// Print initial
 	try!(print_graph(&graph, &mut directory, &file_noextension));
 	// Gradient
@@ -67,7 +65,7 @@ fn main_proxy(args: Args) ->  Result<(), ProgramError> {
 	Ok(())
 }
 
-fn print_graph(graph: & core::graph::ComputeGraph, directory: &mut std::path::PathBuf, name: &String) -> Result<(), ProgramError>{
+fn print_graph(graph: & meta_diff::core::graph::ComputeGraph, directory: &mut std::path::PathBuf, name: &String) -> Result<(), ProgramError>{
 	// Print cmd graph
 	directory.push(name.clone() + ".txt");
 	let file = try!(std::fs::File::create(directory.as_path()));
@@ -79,7 +77,7 @@ fn print_graph(graph: & core::graph::ComputeGraph, directory: &mut std::path::Pa
 	directory.push(name.clone() + ".dot");
 	let file = try!(std::fs::File::create(directory.as_path()));
 	let mut writer = std::io::BufWriter::new(&file);
-	try!(codegen::write_graphviz(&mut writer as &mut std::io::Write, &graph));
+	try!(meta_diff::codegen::write_graphviz(&mut writer as &mut std::io::Write, &graph));
 	directory.pop();
 	Ok(())
 }
@@ -87,7 +85,7 @@ fn print_graph(graph: & core::graph::ComputeGraph, directory: &mut std::path::Pa
 #[derive(Debug)]
 enum ProgramError {
 	Io(std::io::Error),
-	Parse(core::ParseError),
+	Parse(meta_diff::core::ParseError),
 	Other(String)
 }
 
@@ -97,8 +95,8 @@ impl From<std::io::Error> for ProgramError {
 	}
 }
 
-impl From<core::ParseError> for ProgramError {
-	fn from(err: core::ParseError) -> ProgramError {
+impl From<meta_diff::core::ParseError> for ProgramError {
+	fn from(err: meta_diff::core::ParseError) -> ProgramError {
 		ProgramError::Parse(err)
 	}
 }
