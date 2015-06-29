@@ -4,6 +4,7 @@ use core::graph::*;
 
 static HEADING: &'static str =
 "digraph G{
+	bgcolor=\"transparent\";
 	ranksep=.75;
 	node [shape=box, fontsize=16, style=filled];
 	subgraph cluster_0{
