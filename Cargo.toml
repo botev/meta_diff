@@ -7,10 +7,10 @@ documentation = "http://botev.github.io/meta_diff/index.html"
 homepage = "https://github.com/Botev/meta_diff"
 repository = "https://github.com/Botev/meta_diff"
 readme = "README.md"
-keywords = ["machine learning","autodiff","codegen"]
+keywords = ["autodiff","machine-learning","deep-learning"]
 license = "GPL-3.0+"
 
-[lib] 
+[lib]
 name = "meta_diff"
 path = "src/lib.rs"
 test = true
