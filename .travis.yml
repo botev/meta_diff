@@ -1,3 +1,10 @@
 language: rust
 rust: nightly
 
+after_success:
+        - chmod 775 deploy-ghpages.sh
+        - ./deploy-ghpages.sh
+
+env:
+ global:
+ - GH_REF: github.com/Botev/meta_diff.git
