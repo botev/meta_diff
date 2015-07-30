@@ -1,6 +1,7 @@
 # Meta Diff
 [![Build Status](https://travis-ci.org/Botev/meta_diff.svg?branch=master)](https://travis-ci.org/Botev/meta_diff)
-[![License](http://img.shields.io/:license-GPLv3+-blue.svg)](https://github.com/Botev/symbolic_polynomials/blob/master/LICENSE)
+[![Crates.io](https://img.shields.io/crates/v/meta_diff.svg)](https://crates.io/crates/meta_diff)
+[![License](http://img.shields.io/:license-GPLv3+-blue.svg)](https://github.com/Botev/meta_diff/blob/master/LICENSE)
 
 Meta Diff is a tool for automatic differentiation and code generation for developing scalable Machine Learning algorithms across different platforms with a single source file. It is implemented in Rust and will be distributed as binaries for different platforms. 
 
@@ -18,7 +19,9 @@ The command will create a new folder in the current directory with the name of t
 
 ## The source language
 
-The source file follows a subset of Matlab syntax, but has several important differences. Consider the simple source file below for a feed forward network:
+The source file follows a subset of Matlab syntax, but has several important differences. The parser has been generated from the `grammar.rs` file using [rust-peg] (https://github.com/kevinmehall/rust-peg) with small alternations. 
+
+Consider the simple source file below for a feed forward network:
 
 ```matlab
 function [L] = mat(@w1,@w2,x,y)
