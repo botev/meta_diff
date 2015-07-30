@@ -3,12 +3,14 @@
 macro_rules! result_err {
  ($input:ident , $state:ident , $msg:expr) => {
      {
-         let (line, col) = pos_to_line($input, $state.max_err_pos);  
-         Err(ParseError{line: line, column: col, offset: $state.max_err_pos, 
+         let (line, col) = pos_to_line($input, $state.max_err_pos);
+         Err(ParseError{line: line, column: col, offset: $state.max_err_pos,
              expected: HashSet::new(), msg: Some($msg)})
      }
  };
 }
+use super::operator::*;
+use super::node::*;
 use super::graph::*;
 use std::collections::{HashMap, HashSet};
 use self::RuleResult::{Matched, Failed};
@@ -384,7 +386,7 @@ fn parse_functionDefinition<'input>(input: &'input str,
                                                                                                                                                                             {
                                                                                                                                                                                 let mut repeat_pos =
                                                                                                                                                                                     pos;
-                                                                                                                                                                                loop 
+                                                                                                                                                                                loop
                                                                                                                                                                                      {
                                                                                                                                                                                     let pos =
                                                                                                                                                                                         repeat_pos;

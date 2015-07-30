@@ -1,189 +1,10 @@
 use std::fmt::{Display, Formatter, Error};
 use std::string::ToString;
 use std::collections::HashMap;
-/// The `Dimension` type which represents any dimension up to the number of supported ones
+use super::operator::*;
+use super::node::*;
 
-#[derive(Copy, Clone, Debug)]
-pub enum Dimension{
-	First,
-	Second,
-	All
-}
 
-/// The `Operator` type of any node resulting from an algebric operation
-#[derive(Clone, Debug)]
-pub enum Operator {
-	/// `Constant` operator that transforms a ParameterNode or ParameterDerivedNode to a ConstantDerivedNode.
-	/// Other types of nodes remain unchanged
-	Const(usize),
-	/// `Constant` operator that creates a new matrix of ones with dimensions given by its arguments.
-	/// Those need to be either a SymbolicNode or their dimensions should be (1,1)
-	Ones(usize,usize),
-	/// `Constant` operator that creates a new matrix of zeros with dimensions given by its arguments.
-	/// Those need to be either a SymbolicNode or their dimensions should be (1,1)
-	Zeros(usize,usize),
-	/// `Constant` operator that creates a new identity matrix with dimensions given by its argument.
-	/// That need to be either a SymbolicNode or their dimensions should be (1,1)
-	Eye(usize),
-	/// `Constant` operator that returns a new SymbolicNode representing the size of the argument among the given dimension.
-	Size(usize, Dimension),
-	/// `Constant` operator that represents elementwise sign
-	Sign(usize),
-	/// `Constant` logical operator
-	LessThan(usize, usize),
-	/// `Constant` logical operator
-	LessThanOrEqual(usize, usize),
-	/// `Constant` logical operator
-	GreaterThan(usize, usize),
-	/// `Constant` logical operator
-	GreaterThanOrEqual(usize, usize),
-	/// `Unary` operator representing negation operation : -x
-	Neg(usize),
-	/// `Unary` operator representing division operation : x^-1
-	Div(usize),
-	/// `Unary` operator representing matrix inversion : M^-1
-	MatrixInverse(usize),
-	/// `Unary` operator representing matrix transpose : M^T
-	Transpose(usize),
-	/// `Unary` operator taking the diagonal of a matrix as a column vector
-	MatrixDiag(usize),
-	/// `Unary` operator taking a vector to a matrix, whose diagonal is equal to that vector
-	VectorDiag(usize),
-	/// `Unary` operator representing elementwise cosine
-	Cos(usize),
-	/// `Unary` operator representing elementwise sine
-	Sin(usize),
-	/// `Unary` operator representing elementwise tangent
-	Tan(usize),
-	/// `Unary` operator representing elementwise hyperbolic cosine
-	CosH(usize),
-	/// `Unary` operator representing elementwise hyperbolic sine
-	SinH(usize),
-	/// `Unary` operator representing elementwise hyperbolic tangent
-	TanH(usize),
-	/// `Unary` operator representing elementwise absolute value
-	Abs(usize),
-	/// `Unary` operator representing elementwise natural logarithm
-	Log(usize),
-	/// `Unary` operator representing elementwise exponential
-	Exp(usize),
-	/// `Unary` operator representing elementwise square root
-	Sqrt(usize),
-	/// `Unary` operator representing elementwise square
-	Square(usize),
-	/// `Unary` operator representing elementwise rectifier : max(x,0)
-	Sigmoid(usize),
-	/// `Unary` operator representing elementwise max
-	Max(usize, usize),
-	/// `Unary` operator representing elementwise max
-	Min(usize, usize),
-	// /// `Unary` operator that represents the broadcasting of the first argument
-	// /// along the dimension of the second argument with respect to the third.
-	// Broadcast(usize, Dimension),
-	/// `Unary` operator that takes the sum of the elements among the given dimension.
-	/// If the dimension is none takes the sum of all elements.
-	Sum(usize, Dimension),
-	/// `Unary` operator that takes the L2 squared norm among the given dimension.
-	/// If the dimension is none takes the L2 of all elements
-	L2(usize, Dimension),
-	/// `Unary` operator that takes the L2 squared norm among the given dimension.
-	/// If the dimension is none takes the L1 of all elements
-	L1(usize, Dimension),
-	/// `Nary` operator that represents the summation of all arguments
-	Add(Vec<usize>),
-	/// `Nary` operator that represents the multiplication of all arguments elementwise
-	Mul(Vec<usize>),
-	/// `Nary` operator that represents the linear algebra multiplication of all arguments
-	Dot(Vec<usize>),
-	/// `Binary` operator that represents the first argument elementwise to the power of the second argument
-	Pow(usize,usize),
-	/// `Binary` operator that represents the matrix quadratic form A' B A
-	Quadratic(usize,usize),
-	/// `Nary` operator that concatenates horizontally all of its arguments
-	HorzCat(Vec<usize>),
-	/// `Nary` operator that concatenates vertically all of its arguments
-	VertCat(Vec<usize>),
-	/// `Unary` operator that takes the sub block of the first argument described by the others in the sense
-	/// (parent, start_x, sizeOfBlockX, start_y, sizeOfBlockY)
-	SubIndex(usize,usize,usize,usize,usize),
-	/// `Unary` operator that represent the oppoiste of subindexing - subassignment. E.g. this means that
-	/// the result is a matrix of zeros, whose subblock is equal to the parent.
-	/// The arguments are in the same format as subindex - (parent, start_x, sizeOfBlockX, start_y, sizeOfBlockY)
-	SubAssign(usize, usize, usize, usize, usize),
-	/// `Unary` operator that takes the reshapes the first argument to a matrix of dimensions (2nd,3rd)
-	Reshape(usize,usize,usize),
-	/// `Unary` operator that replicates the first argument horizontally. It is assumed that it is a scalar or column vector.
-	ReplicateHorz(usize,usize),
-	/// `Unary` operator that replicates the first argument vertically. It is assumed that it is a scalar or row vector.
-	ReplicateVert(usize,usize)
-}
-
-impl ToString for Operator{
-	fn to_string(&self) -> String {format!("{:?}", self)}
-}
-/// Represents the five types any `ComputeNode` can be
-#[derive(Clone, Debug)]
-pub enum Type{
-	/// Represents a single floating variable
-	Float(f64),
-	/// Represents a single integer variable
-	Integer(i64),
-	/// Represents a constant input, no gradients will be taken with respect to such node
-	ConstInput,
-	/// Represents a pramater, gradients will be taken with respect to such node
-	Parameter,
-	/// Represent a variable which depends only on `ConstInput`s, `Float`s or `Integer`s
-	ConstDerived,
-	/// Represent a variable which has some dependency on a `Parameter`
-	ParameterDerived
-}
-
-/// The main data structure of the `ComputeGraph`
-#[derive(Clone, Debug)]
-pub struct ComputeNode{
-	pub id: usize,
-	pub node_type: Type,
-	pub name: String,
-	pub children: Vec<usize>,
-	pub grad_level: u8,
-	pub inline: bool,
-	// dims: Pair<SymPolynomial>,
-	pub grad_child: Option<usize>,
-	pub grad_parents: Vec<usize>,
-	pub op: Option<Operator>
-}
-
-impl Display for ComputeNode{
-	fn fmt(&self, f : &mut Formatter) -> Result<(), Error> {
-		write!(f, concat!("********{}[{}]********\n",
-			"Type:{:?}\n",
-			"Operator: {:?}\n",
-			"Children:{:?}"),
-		self.name, self.id, self.node_type, self.op, self.children)
-	}
-}
-
-impl ComputeNode{
-	/// Creates a new empty `ComputeNode`, its name depends on the input type and gradient level
-	pub fn new(id: usize, node_type: Type, grad_level: u8, op: Option<Operator>) -> Self{
-		let name: &str;
-		if grad_level > 0{
-			name = "AutoGrad";
-		}
-		else {
-			match node_type {
-				Type::Float(_) => name = "Float",
-				Type::Integer(_) => name = "Int",
-				Type::ConstInput => name = "ConstIn",
-				Type::Parameter => name = "Param",
-				Type::ConstDerived => name = "ConstDer",
-				Type::ParameterDerived => name = "ParamDer"
-			}
-		}
-		ComputeNode{id: id, node_type: node_type, name: name.to_string(), children: Vec::new(),
-			grad_level: grad_level, inline: false, grad_child: None, grad_parents: Vec::new(), op:op}
-	}
-}
 
 /// The core of this module - this structure contains the full compute graph
 #[derive(Clone, Debug)]
@@ -202,7 +23,7 @@ pub struct ComputeGraph{
 
 impl Display for ComputeGraph{
 	fn fmt(&self, f : &mut Formatter) -> Result<(), Error> {
-		try!(write!(f, concat!("============Graph {}============\n",
+		try!(write!(f, concat!("============ Graph {} ============\n",
 			"Number of nodes:{}\n",
 			"Target: {}\n",
 			"Outputs:{:?}\n" ,
@@ -214,7 +35,7 @@ impl Display for ComputeGraph{
 				None => {}
 			}
 		}
-		write!(f, "============Graph End============")
+		write!(f, "============ Graph End ============")
 	}
 }
 
@@ -899,21 +720,56 @@ impl ComputeGraph{
 	}
 
 	#[inline(always)]
-	fn get_mut_node(&mut self, index: usize) -> Result<&mut ComputeNode, String>{
-		try!(self.nodes.get_mut(index).ok_or("The index is out of bounds")).as_mut().ok_or(format!("The requested node {} is None", index))
+	pub fn get_mut_node(&mut self, index: usize) -> Result<&mut ComputeNode, String>{
+		try!(self.nodes.get_mut(index).ok_or_else(|| "The index is out of bounds")).as_mut()
+		.ok_or_else(|| format!("The requested node {} is None", index))
 	}
 
 	#[inline(always)]
-	fn get_node(&mut self, index: usize) -> Result<& ComputeNode, String>{
-		try!(self.nodes.get(index).ok_or("The index is out of bounds")).as_ref().ok_or(format!("The requested node {} is None", index))
+	pub fn get_node(&mut self, index: usize) -> Result<& ComputeNode, String>{
+		try!(self.nodes.get(index).ok_or_else(|| "The index is out of bounds")).as_ref()
+		.ok_or_else(|| format!("The requested node {} is None", index))
 	}
 
 	#[inline(always)]
-	fn is_dependable(&mut self, index: usize) -> Result<bool, String> {
+	pub fn pop_node(&mut self, index: usize) -> Result<ComputeNode, String> {
+		self.nodes.push(None);
+		self.nodes.swap_remove(index).ok_or_else(|| format!("The requested node {} is None", index))
+	}
+
+	#[inline(always)]
+	pub fn insert_node(&mut self, index: usize, node: Option<ComputeNode>) -> Option<ComputeNode> {
+		self.nodes.push(node);
+		self.nodes.swap_remove(index)
+	}
+
+	#[inline(always)]
+	pub fn is_dependable(&mut self, index: usize) -> Result<bool, String> {
 		match try!(self.get_node(index)).node_type.clone(){
 			Type::Parameter | Type::ParameterDerived => Ok(true),
 			_ => Ok(false)
 		}
+	}
+
+	pub fn swap_child_connections(&mut self, old_parent: usize, new_parent: usize) -> Result<(), String> {
+		if old_parent == new_parent {
+			return Ok(())
+		}
+		// Extract children
+		let children = try!(self.get_node(old_parent)).children.clone();
+		for child in children.iter(){
+			let node = try!(self.get_mut_node(*child));
+			// Create new operator by swapping parents
+			let operator = match node.op {
+				Some(ref op) =>  try!(op.swap_parent(old_parent, new_parent)),
+				None => return Err(format!("The child {} of parent {} has no operator", child, old_parent))
+			};
+			// Set the child operator to the new one
+			node.op = Some(operator);
+		}
+		// Add all children to the new parent
+		try!(self.get_mut_node(new_parent)).children.extend(children.into_iter());
+		Ok(())
 	}
 
 	pub fn string_to_operator(&mut self , name: String, args: Vec<usize>) -> Result<usize,String>{
@@ -1158,6 +1014,26 @@ impl ComputeGraph{
 			| "br" | "sum" | "l2" | "l1" | "dot" | "horzcat" | "vertcat"| "reshape" | "replicate" => true,
 			_ => false
 		}
+	}
+
+	pub fn get_params(&self) -> (Vec<usize>, Vec<String>) {
+		let mut names : Vec<String> = Vec::new();
+		let mut grads : Vec<usize> = Vec::new();
+		for option in self.nodes.iter(){
+			match *option {
+				Some(ref node) => {
+					match node.node_type {
+						Type::Parameter => {
+							names.push(node.name.clone());
+							grads.push(node.grad_child.unwrap());
+						}
+						_ => ()
+					}
+				},
+				None => ()
+			}
+		}
+		(grads, names)
 	}
 
 }

@@ -59,13 +59,21 @@ fn main_proxy(args: Args) ->  Result<(), ProgramError> {
 	// Gradient
 	try!(graph.gradient());
 	try!(print_graph(&graph, &mut directory, &(file_noextension.clone() + "_grad")));
-	// Print graphviz gradient
+	// Hessian-vector product
+	let (ids, names) = graph.get_params();
+	let vs = ids.iter().zip(names.iter()).map(|(id, name)| {
+		let v = graph.add_const_input(name.clone() + &"_v".to_string());
+		let op = meta_diff::core::Operator::Mul(vec![*id, v]);
+		graph.add_operation(op).unwrap()
+	}).collect::<Vec<usize>>();
+	let target = try!(graph.add_operation(meta_diff::core::Operator::Add(vs)));
+	graph.target = target;
 	try!(graph.gradient());
-	directory.push(file_noextension.clone() + "_grad.dot");
+	try!(print_graph(&graph, &mut directory, &(file_noextension.clone() + "_hess")));
 	Ok(())
 }
 
-fn print_graph(graph: & meta_diff::core::graph::ComputeGraph, directory: &mut std::path::PathBuf, name: &String) -> Result<(), ProgramError>{
+fn print_graph(graph: & meta_diff::core::ComputeGraph, directory: &mut std::path::PathBuf, name: &String) -> Result<(), ProgramError>{
 	// Print cmd graph
 	directory.push(name.clone() + ".txt");
 	let file = try!(std::fs::File::create(directory.as_path()));
