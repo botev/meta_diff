@@ -4,7 +4,16 @@ fn parse_ok(nodes: usize, source: &str){
 	let result = meta_diff::core::parseMetaFile(source);
 	match result {
 		Ok(graph) => {
-			assert!(graph.nodes.len() == nodes, "Number of nodes expected: {}, was: {}", nodes, graph.nodes.len());
+			if graph.len() == nodes {
+				assert!(true);
+			} else {
+				match meta_diff::codegen::write_graphviz(&mut ::std::io::stdout() , &graph){
+					Ok(_) => (),
+					Err(msg) => assert!(false, "{}", msg)
+				}
+				println!("{}",graph);
+				assert!(false,  "Number of nodes expected: {}, was: {}", nodes, graph.nodes.len());
+			}
 		}
 		Err(msg) => {
 			assert!(false, "{}", msg);

@@ -121,14 +121,14 @@ pub fn write_graphviz(fmt: &mut Write, graph: & ComputeGraph) -> Result<(),Error
 			}
 		}
 	}
-	try!(write!(fmt, "{}", "}\n"));
+	try!(write!(fmt, "{}", "\t}\n"));
 	// Write connections
 	for option in graph.nodes.iter(){
 		match *option{
 			None => (),
 			Some(ref value) => match {
 				for child in value.children.iter(){
-					try!(write!(fmt, "{} -> {};\n", value.id, child));
+					try!(write!(fmt, "\t{} -> {};\n", value.id, child));
 				}
 				Ok(())
 			} {

@@ -1,0 +1,64 @@
+============ Graph mat ============
+Number of nodes:17
+Target: 15
+Outputs:[15]
+============= Nodes =============
+********w[0]********
+Type:Parameter
+Children:[7, 11]
+********x[1]********
+Type:ConstInput
+Children:[5]
+********y[2]********
+Type:ConstInput
+Children:[]
+********Int[5][3]********
+Type:Integer(5)
+Children:[]
+********ConstDer[5]********
+Type:ConstDerived
+Operator: VertCat([1, 16])
+Children:[6]
+********ConstDer[6]********
+Type:ConstDerived
+Operator: Neg(5)
+Children:[7]
+********ParamDer[7]********
+Type:ParameterDerived
+Operator: Mul([0, 6])
+Children:[8]
+********ConstDer[8]********
+Type:ConstDerived
+Operator: Const(7)
+Children:[10, 13]
+********Int[1][9]********
+Type:Integer(1)
+Children:[10]
+********ConstDer[10]********
+Type:ConstDerived
+Operator: HorzCat([8, 9])
+Children:[11]
+********ParamDer[11]********
+Type:ParameterDerived
+Operator: Mul([0, 10])
+Children:[12]
+********ParamDer[12]********
+Type:ParameterDerived
+Operator: VectorDiag(11)
+Children:[14]
+********ConstDer[13]********
+Type:ConstDerived
+Operator: Neg(8)
+Children:[14]
+********ParamDer[14]********
+Type:ParameterDerived
+Operator: Add([12, 13])
+Children:[15]
+********ParamDer[15]********
+Type:ParameterDerived
+Operator: L1(14, All)
+Children:[]
+********Int[1][16]********
+Type:Integer(1)
+Children:[5]
+============ Graph End ============

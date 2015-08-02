@@ -1,4 +1,5 @@
 extern crate meta_diff;
-#[macro_use] 
+#[macro_use]
 mod macros;
 mod core;
+mod optimization;

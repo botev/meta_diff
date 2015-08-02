@@ -1,6 +1,7 @@
 use std::fmt::{Display, Formatter, Error};
 use std::string::ToString;
 use std::collections::HashMap;
+// use std::collections::vec_deque::VecDeque;
 use super::operator::*;
 use super::node::*;
 
@@ -13,6 +14,7 @@ pub struct ComputeGraph{
 	grad_level: u8,
 	pub name: String,
 	pub nodes: Vec<Option<ComputeNode>>,
+	pub ordering: Vec<usize>,
 	pub target: usize,
 	pub outputs: Vec<usize>,
 	// pub variable_table: HashMap<String, usize>,
@@ -40,69 +42,75 @@ impl Display for ComputeGraph{
 }
 
 impl ComputeGraph{
+	/// Returns the number of nodes in the graph
+	pub fn len(&self) -> usize {
+		self.nodes.iter().fold(0, |acc,x| if x.is_some() {acc + 1} else {acc})
+	}
+
+	///
+	fn insert_new(&mut self, mut node: ComputeNode) -> usize{
+		node.id = self.counter;
+		// println!("Inserting node {:?} to id {}",&node, self.counter);
+		self.nodes.push(Some(node));
+		self.ordering.push(self.counter);
+		self.counter += 1;
+		return self.counter-1
+	}
+
+	fn remove_last(&mut self) -> usize{
+		// println!("FCK");
+		let order = self.ordering.iter().position(|&x| x == self.counter-1).unwrap();
+		self.counter -= 1;
+		self.nodes.remove(self.counter);
+		self.ordering.remove(order);
+		return order
+	}
+
 	/// Create a new compute graph for a function with the input name
 	pub fn new() -> Self{
-		return ComputeGraph{name: "main".to_string(), counter: 0, grad_level: 0, nodes: Vec::new(), target: 0, outputs: Vec::new()}
+		return ComputeGraph{name: "main".to_string(), counter: 0, grad_level: 0, nodes: Vec::new(), ordering: Vec::new(), target: 0, outputs: Vec::new()}
 	}
 
 	/// Creates a new `Parameter` variable with the given name, inserts it in the variable table and returns its id
 	pub fn add_parameter(&mut self, name: String) ->  usize {
-		let mut node = ComputeNode::new(self.counter, Type::Parameter, self.grad_level, None);
+		let mut node = ComputeNode::new(0, Type::Parameter, self.grad_level, None);
 		node.name = name;
-		self.counter += 1;
-		self.nodes.push(Some(node));
-		return self.counter-1
+		self.insert_new(node)
 	}
 
 	/// Creates a new `Float` variable and returns its id
 	pub fn add_float(&mut self, value: f64) -> usize{
-		let node = ComputeNode::new(self.counter, Type::Float(value), self.grad_level, None);
-		self.counter += 1;
-		self.nodes.push(Some(node));
-		return self.counter-1
+		let node = ComputeNode::new(0, Type::Float(value), self.grad_level, None);
+		self.insert_new(node)
 	}
 
 	/// Creates a new `Integer` variable and returns its id
 	pub fn add_int(&mut self, value: i64) -> usize{
-		let node = ComputeNode::new(self.counter, Type::Integer(value), self.grad_level, None);
-		self.counter += 1;
-		self.nodes.push(Some(node));
-		return self.counter-1
+		let node = ComputeNode::new(0, Type::Integer(value), self.grad_level, None);
+		self.insert_new(node)
 	}
 
 	/// Creates a new `ConstInput` variable with the given name, inserts it in the variable table and returns its id
 	pub fn add_const_input(&mut self, name: String) -> usize{
-		let mut node = ComputeNode::new(self.counter, Type::ConstInput, self.grad_level, None);
+		let mut node = ComputeNode::new(0, Type::ConstInput, self.grad_level, None);
 		node.name = name;
-		self.counter += 1;
-		self.nodes.push(Some(node));
-		return self.counter-1
+		self.insert_new(node)
 	}
 
 	/// Adds a variable coresponding to the input operation to the graph
 	pub fn add_operation(&mut self, op : Operator) -> Result<usize, String>{
 		let mut node_type = Type::ConstDerived;
+		let new_id = self.counter;
 		match op{
 			Operator::Const(parent_id) |  Operator::Eye(parent_id) | Operator::Size(parent_id, _)
 			| Operator::Sign(parent_id)=> {
-				match * &mut self.nodes[parent_id]{
-					Some(ref mut parent) => {
-						parent.children.push(self.counter);
-					},
-					None => return Err("Trying to access deleted node!".to_string())
-				}
+				try!(self.get_mut_node(parent_id)).children.push(new_id);
 			},
 			Operator::Ones(parent_id1, parent_id2) | Operator::Zeros(parent_id1, parent_id2)
 			| Operator::LessThan(parent_id1, parent_id2) | Operator::LessThanOrEqual(parent_id1, parent_id2)
 			| Operator::GreaterThan(parent_id1, parent_id2) | Operator::GreaterThanOrEqual(parent_id1, parent_id2) => {
-				match * &mut self.nodes[parent_id1]{
-					Some(ref mut parent) => parent.children.push(self.counter),
-					None => return Err("The parent node in the operator provided has been deleted.".to_string())
-				}
-				match * &mut self.nodes[parent_id2]{
-					Some(ref mut parent) => parent.children.push(self.counter),
-					None => return Err("The parent node in the operator provided has been deleted.".to_string())
-				}
+				try!(self.get_mut_node(parent_id1)).children.push(new_id);
+				try!(self.get_mut_node(parent_id2)).children.push(new_id);
 			},
 			Operator::Neg(parent_id) | Operator::Div(parent_id) | Operator::MatrixInverse(parent_id)
 			| Operator::Transpose(parent_id) | Operator::MatrixDiag(parent_id) | Operator::VectorDiag(parent_id)
@@ -111,110 +119,142 @@ impl ComputeGraph{
 			| Operator::Abs(parent_id) | Operator::Log(parent_id) | Operator::Exp(parent_id)
 			| Operator::Sqrt(parent_id) | Operator::Square(parent_id)
 			| Operator::Sigmoid(parent_id) | Operator::Sum(parent_id,_)
-			| Operator::L2(parent_id,_) | Operator::L1(parent_id,_) => { //| Operator::Broadcast(parent_id,_) => {
-				match * &mut self.nodes[parent_id]{
-					Some(ref mut parent) => {
-						match parent.node_type {
-							Type::Parameter | Type::ParameterDerived => node_type = Type::ParameterDerived,
-							_ => ()
-						}
-						parent.children.push(self.counter);
-					},
-					None => return Err("Trying to access deleted node!".to_string())
+			| Operator::L2(parent_id,_) | Operator::L1(parent_id,_) => {
+				//| Operator::Broadcast(parent_id,_) =>
+				try!(self.get_mut_node(parent_id)).children.push(new_id);
+				match try!(self.get_mut_node(parent_id)).node_type {
+					Type::Parameter | Type::ParameterDerived => node_type = Type::ParameterDerived,
+					_ => ()
 				}
 			},
 			Operator::Pow(parent_id1, parent_id2) | Operator::Quadratic(parent_id1, parent_id2)
 			| Operator::Max(parent_id1, parent_id2) | Operator::Min(parent_id1, parent_id2) => {
-				match * &mut self.nodes[parent_id1]{
-					Some(ref mut parent) => {
-						match parent.node_type {
-							Type::Parameter | Type::ParameterDerived => node_type = Type::ParameterDerived,
-							_ => ()
-						}
-						parent.children.push(self.counter);
-					},
-					None => return Err("Trying to access deleted node!".to_string())
+				try!(self.get_mut_node(parent_id1)).children.push(new_id);
+				match try!(self.get_mut_node(parent_id1)).node_type {
+					Type::Parameter | Type::ParameterDerived => node_type = Type::ParameterDerived,
+					_ => ()
 				}
-				match * &mut self.nodes[parent_id2]{
-					Some(ref mut parent) => {
-						match parent.node_type {
-							Type::Parameter | Type::ParameterDerived => node_type = Type::ParameterDerived,
-							_ => ()
-						}
-						parent.children.push(self.counter);
-					},
-					None => return Err("Trying to access deleted node!".to_string())
+				try!(self.get_mut_node(parent_id2)).children.push(new_id);
+				match try!(self.get_mut_node(parent_id2)).node_type {
+					Type::Parameter | Type::ParameterDerived => node_type = Type::ParameterDerived,
+					_ => ()
 				}
 			},
 			Operator::Add(ref parent_ids) | Operator::Mul(ref parent_ids) | Operator::Dot(ref parent_ids)
 			| Operator::HorzCat(ref parent_ids) | Operator::VertCat(ref parent_ids) => {
 				for parent_id in parent_ids.iter().cloned(){
-					match * &mut self.nodes[parent_id]{
-						Some(ref mut parent) => {
-							match parent.node_type {
-								Type::Parameter | Type::ParameterDerived => node_type = Type::ParameterDerived,
-								_ => ()
-							}
-							parent.children.push(self.counter);
-						},
-						None => return Err("Trying to access deleted node!".to_string())
+					try!(self.get_mut_node(parent_id)).children.push(new_id);
+					match try!(self.get_mut_node(parent_id)).node_type {
+						Type::Parameter | Type::ParameterDerived => node_type = Type::ParameterDerived,
+						_ => ()
 					}
 				}
 			},
 			Operator::SubIndex(parent_id, arg_id1, arg_id2, arg_id3, arg_id4) |
 			Operator::SubAssign(parent_id, arg_id1, arg_id2, arg_id3, arg_id4) => {
-				let ids = [parent_id, arg_id1, arg_id2, arg_id3, arg_id4];
-				for parent_id in &ids{
-					match * &mut self.nodes[*parent_id]{
-						Some(ref mut parent) => {
-							match parent.node_type {
-								Type::Parameter | Type::ParameterDerived => node_type = Type::ParameterDerived,
-								_ => ()
-							}
-							parent.children.push(self.counter);
-						},
-						None => return Err("Trying to access deleted node!".to_string())
-					}
+				try!(self.get_mut_node(parent_id)).children.push(new_id);
+				match try!(self.get_mut_node(parent_id)).node_type {
+					Type::Parameter | Type::ParameterDerived => node_type = Type::ParameterDerived,
+					_ => ()
+				}
+				let args = vec![arg_id1, arg_id2, arg_id3, arg_id4];
+				for arg_id in args{
+					try!(self.get_mut_node(arg_id)).children.push(new_id);
 				}
 			},
 			Operator::Reshape(parent_id, arg_id1, arg_id2) => {
-				let ids = [parent_id, arg_id1, arg_id2];
-				for parent_id in &ids{
-					match * &mut self.nodes[*parent_id]{
-						Some(ref mut parent) => {
-							match parent.node_type {
-								Type::Parameter | Type::ParameterDerived => node_type = Type::ParameterDerived,
-								_ => ()
-							}
-						},
-						None => return Err("Trying to access deleted node!".to_string())
-					}
+				try!(self.get_mut_node(parent_id)).children.push(new_id);
+				match try!(self.get_mut_node(parent_id)).node_type {
+					Type::Parameter | Type::ParameterDerived => node_type = Type::ParameterDerived,
+					_ => ()
+				}
+				let args = vec![arg_id1, arg_id2];
+				for arg_id in args{
+					try!(self.get_mut_node(arg_id)).children.push(new_id);
 				}
 			},
 			Operator::ReplicateHorz(parent_id, arg_id) | Operator::ReplicateVert(parent_id, arg_id) => {
-				let ids = [parent_id, arg_id];
-				for parent_id in &ids{
-					match * &mut self.nodes[*parent_id]{
-						Some(ref mut parent) => {
-							match parent.node_type {
-								Type::Parameter | Type::ParameterDerived => node_type = Type::ParameterDerived,
-								_ => ()
-							}
-						},
-						None => return Err("Trying to access deleted node!".to_string())
-					}
+				try!(self.get_mut_node(parent_id)).children.push(new_id);
+				match try!(self.get_mut_node(parent_id)).node_type {
+					Type::Parameter | Type::ParameterDerived => node_type = Type::ParameterDerived,
+					_ => ()
 				}
+				try!(self.get_mut_node(arg_id)).children.push(new_id);
 			}
 		}
-		let node = ComputeNode::new(self.counter, node_type, self.grad_level, Some(op));
-		self.nodes.push(Some(node));
-		self.counter += 1;
-		return Ok(self.counter-1);
+		let node = ComputeNode::new(0, node_type, self.grad_level, Some(op));
+		Ok(self.insert_new(node))
 	}
 
-	/// Applies a gradient operator to the graph given the current target
-	pub fn gradient(&mut self) -> Result<(),String>{
-		match self.nodes[self.target]{
+	/// Generates an ordering of computation
+	pub fn generate_ordering(&mut self, mut targets: Vec<usize>) -> Result<Vec<usize>,String> {
+		let mut spanning_tree = vec![false; self.counter];
+		// Generate spanning tree for the target
+		// let mut stack : Vec<usize> = Vec::new();
+		while targets.len() > 0 {
+			// println!("S1");
+			let node = targets.pop().unwrap();
+			// println!("S2");
+			// println!("{}-{}",spanning_tree.len(),node);
+			if !spanning_tree[node] {
+				match try!(self.get_node(node)).op {
+					Some(ref operator) => {
+							for p in operator.get_ancestors().iter(){
+								targets.push(*p);
+							}
+					},
+					None => ()
+				}
+			}
+			spanning_tree[node] = true;
+		}
+		Ok(self.ordering.iter().cloned().filter(|&x| spanning_tree[x]).collect::<Vec<usize>>())
+
+		// let mut ordering : Vec<usize> = Vec::new();
+		// let mut processed : HashSet<usize> = HashSet::new();
+		// let _ = self.nodes.iter().enumerate().map(|x| if x.1.is_none(){processed.insert(x.0);});
+		// let mut change = true;
+		// //let n = self.nodes.len();
+		// while change {
+		// 	change = false;
+		// 	for (i,node) in self.nodes.iter().enumerate() {
+		// 		if !processed.contains(&i) {
+		// 			match *node {
+		// 				Some(ref n) => {
+		// 					match n.op{
+		// 						Some(ref operator) => {
+		// 							if operator.get_ancestors().iter()
+		// 								.fold(true, |acc, x| acc && processed.contains(x)){
+		// 									ordering.push(i);
+		// 									processed.insert(i);
+		// 									change = true;
+		// 								}
+		// 						},
+		// 						None => {
+		// 							ordering.push(i);
+		// 							processed.insert(i);
+		// 							change = true;
+		// 						}
+		// 					}
+		// 				},
+		// 				None => (),
+		// 			}
+		// 		}
+		// 	}
+		// }
+		// ordering
+		// Ok(vec![1])
+	}
+
+	/// Applies gradient operator with the target held in the graph
+	pub fn direct_gradient(&mut self) -> Result<(),String>{
+		let target = self.target;
+		self.gradient(target)
+	}
+
+	/// Applies a gradient operator to the graph given the target
+	pub fn gradient(&mut self, target: usize) -> Result<(),String>{
+		match self.nodes[target]{
 			Some(ref node) => match node.node_type {
 				Type::Parameter | Type::ParameterDerived => (),
 				_ => return Ok(())
@@ -223,15 +263,27 @@ impl ComputeGraph{
 		}
 		self.grad_level += 1;
 		let mut messages : HashMap<usize, Vec<usize>> = HashMap::new();
-		let mut span : Vec<bool> = self.nodes.iter().cloned().map(|_| false).collect::<Vec<bool>>();
-		span.push(true);
-		span.swap_remove(self.target);
+		// let mut span : Vec<bool> = self.nodes.iter().cloned().map(|_| false).collect::<Vec<bool>>();
+		let ordering = try!(self.generate_ordering(vec![target]));
+		println!("Ordering: {:?}",ordering);
+		// let mut stack = VecDeque::new();
+		// stack.push_back(target);
+
+		// span.push(true);
+		// span.swap_remove(self.target);
+
 		messages.insert(self.target, vec![self.add_int(1)]);
-		for i in (0..self.target + 1).rev(){
+		for i in ordering.iter().rev(){
+		// while stack.len() > 0 {
+		// for i in (0..self.target + 1).rev(){
 			// Skip if the node is not in the spanning tree of the target
-			if !span[i] {
-				continue;
-			}
+			// if !span[i] {
+				// continue;
+			// }
+
+			// let i = stack.pop_front().unwrap();
+			// println!("Poping {}",i);
+			// println!("Messages: {:?}", messages);
 			// Get the gradient of the current node
 			let gradient = match messages.remove(&i) {
 				Some(vec) => match vec.len() {
@@ -239,25 +291,36 @@ impl ComputeGraph{
 					1 => vec[0],
 					_ => try!(self.add_operation(Operator::Add(vec))),
 				},
-				None => return Err(format!("No incoming messages found for node {}", i))
+				None => continue//return Err(format!("No incoming messages found for node {}", i))
 			};
 			// Connect the gradient info and the parent
-			try!(self.get_mut_node(gradient)).grad_parents.push(i);
-			try!(self.get_mut_node(i)).grad_child = Some(gradient);
+			try!(self.get_mut_node(gradient)).grad_parents.push(*i);
+			try!(self.get_mut_node(*i)).grad_child = Some(gradient);
 			// Generate gradient messages
-			let grad_msgs = try!(self.op_gradient(i, gradient));
+			let grad_msgs = try!(self.op_gradient(*i, gradient));
+
 			for (parent, msg) in grad_msgs{
 				// Mark that that the parent is in the sapnning tree
-				span.push(true);
-				span.swap_remove(parent);
+				// span.push(true);
+				// span.swap_remove(parent);
 				// Add message to his incomings
-				let mut mine = match messages.remove(&parent) {
-					None => Vec::new(),
-					Some(vec) => vec
+				let mut mine = if messages.contains_key(&parent) {
+					messages.get_mut(&parent).unwrap()
+				} else {
+					// println!("no found for parent {} sending form {}", parent, i);
+					// stack.push_back(parent);
+					messages.insert(parent, Vec::new());
+					messages.get_mut(&parent).unwrap()
 				};
 				mine.push(msg);
-				messages.insert(parent,mine);
+				// println!("Inserting message from {} to {} with id {},{}", i, parent, msg, mine.len());
+				// messages.insert(parent,mine);
+				// let mut mine = match messages.remove(0).unrwap();
+				// println!("One : {}", mine.len());
+				// messages.insert(parent,mine);
 			}
+			// println!("Messages: {:?}", messages);
+			// println!("Finishing {}", i);
 		}
 		let mut grad_outputs: Vec<usize> = Vec::new();
 		// Add gradients of the parameters to outptus
@@ -776,7 +839,7 @@ impl ComputeGraph{
 		match &name[..]{
 			"const" => match args.len() {
 				1 => self.add_operation(Operator::Const(args[0])),
-				_ => Err("Rows takes exactly one argument".to_string())
+				_ => Err("Const takes exactly one argument".to_string())
 			},
 			"ones" => match args.len() {
 				2 => self.add_operation(Operator::Ones(args[0], args[1])),
@@ -877,6 +940,12 @@ impl ComputeGraph{
 				},
 				_ => Err("Max takes exactly two arguments".to_string())
 			},
+			"quad" => match args.len() {
+				2 => {
+					self.add_operation(Operator::Quadratic(args[0], args[1]))
+				},
+				_ => Err("Quadratic takes exactly two arguments".to_string())
+			},
 			"sigm" => match args.len() {
 				1 => self.add_operation(Operator::Sigmoid(args[0])),
 				_ => Err("Sigmoid takes exactly one argument".to_string())
@@ -917,8 +986,8 @@ impl ComputeGraph{
 						_ => return Err("The second argument for Sum is missing from the graph or is not 0,1 or 2.".to_string())
 					}
 					if self.counter - 1 == args[1] && ch == 0 {
-						self.counter -= 1;
-						self.nodes.remove(self.counter);
+						println!("1");
+						self.remove_last();
 					}
 					match val  {
 						0 => self.add_operation(Operator::Sum(args[0], Dimension::All)),
@@ -942,8 +1011,8 @@ impl ComputeGraph{
 						_ => return Err("The second argument for L2 is missing from the graph or is not 0,1 or 2.".to_string())
 					}
 					if self.counter - 1 == args[1] && ch == 0 {
-						self.counter -= 1;
-						self.nodes.remove(self.counter);
+						println!("2");
+						self.remove_last();
 					}
 					match val  {
 						0 => self.add_operation(Operator::L2(args[0], Dimension::All)),
@@ -967,8 +1036,8 @@ impl ComputeGraph{
 						_ => return Err("The second argument for L1 is missing from the graph or is not 0,1 or 2.".to_string())
 					}
 					if self.counter - 1 == args[1] && ch == 0 {
-						self.counter -= 1;
-						self.nodes.remove(self.counter);
+						println!("3");
+						self.remove_last();
 					}
 					match val  {
 						0 => self.add_operation(Operator::L1(args[0], Dimension::All)),

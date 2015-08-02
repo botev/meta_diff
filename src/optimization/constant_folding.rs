@@ -1,59 +1,29 @@
 use core::*;
 
-pub fn constant_folding(graph: &mut ComputeGraph) -> Result<(), String> {
-    for i in (0..graph.nodes.len()-1) {
+pub fn constant_folding(graph: &mut ComputeGraph) -> Result<bool, String> {
+    let mut outcome = false;
+    let mut i = 0;
+    loop {
         // Grab operator
         let option = match graph.nodes[i]{
             Some(ref node) => node.op.clone(),
             None => None
         };
-        let result: Result<(),String> = match option{
+        let result = match option{
             Some(op) => single_fold(graph, i, op),
-            None => Ok(()),
+            None => Ok(false),
         };
-        try!(result);
+        outcome = outcome || try!(result);
+        i += 1;
+        if i == graph.nodes.len(){
+            break;
+        }
     }
-    Ok(())
+    Ok(outcome)
 }
 
-// fn fold_nary(graph: &mut ComputeGraph, old: usize, op: Operator) -> Result<(), String>{
-//     let mut new_node : Option<usize> = None;
-//     let mut parents : Vec<usize> = Vec::new();
-//     match op {
-//
-//         // Operator::Mul(ref p) => {
-//         //     let (indexes, values) = try!(extract_values(graph, p));
-//         //     match values.len(){
-//         //         0...1 => (),
-//         //         _ => {
-//         //             let x = values.iter().fold(1.0, |acc, &x| acc * x);
-//         //             if parents.len() == values.len() {
-//         //                 if x == x.floor() {
-//         //                     new_node = Some(graph.add_int(x as i64));
-//         //                 } else {
-//         //                     new_node = Some(graph.add_float(x));
-//         //                 }
-//         //                 parents.push(p[0]);
-//         //                 parents.push(p[1]);
-//         //             } else {
-//         //                 // Combine all constants
-//         //                 let combined = if x == x.floor() {graph.add_int(x as i64)}
-//         //                     else {graph.add_float(x)};
-//         //                 // All parents which were not constants + combined
-//         //                 let mut new_parents  = p.iter().enumerate().filter(|&(i,_)| !indexes.contains(&i)).map(|(_,v)| v.clone()).collect::<Vec<_>>();
-//         //                 new_parents.push(combined);
-//         //                 new_node = Some(try!(graph.add_operation(Operator::Mul(new_parents))));
-//         //                 parents.extend(p.iter().cloned());
-//         //             }
-//         //         }
-//         //     }
-//         // },
-//         _ => return Err("Operator is not nary".to_string())
-//     }
-//     Ok(())
-// }
-
-fn single_fold(graph: &mut ComputeGraph, old: usize, op: Operator) -> Result<(), String>{
+fn single_fold(graph: &mut ComputeGraph, old: usize, op: Operator) -> Result<bool, String>{
+    let mut created_nodes : Vec<usize> = Vec::new();
     let mut new_node : Option<usize> = None;
     let mut parents : Vec<usize> = Vec::new();
     match op{
@@ -81,41 +51,51 @@ fn single_fold(graph: &mut ComputeGraph, old: usize, op: Operator) -> Result<(),
         },
         Operator::Size(p, _) => match try!(graph.get_node(p)).node_type{
             Type::Float(_) | Type::Integer(_) => {
-                new_node = Some(graph.add_int(1));
+                let node = graph.add_int(1);
+                created_nodes.push(node);
+                new_node = Some(node);
                 parents.push(p);
             },
             _ => ()
         },
         Operator::Sign(p) => match try!(graph.get_node(p)).node_type{
             Type::Float(x) => {
-                new_node = if x == 0.0 {
-                    Some(graph.add_int(0))
+                let node = if x == 0.0 {
+                    graph.add_int(0)
                 } else if x < 0.0 {
-                    Some(graph.add_int(-1))
+                    graph.add_int(-1)
                 } else {
-                    Some(graph.add_int(1))
+                    graph.add_int(1)
                 };
+                created_nodes.push(node);
+                new_node = Some(node);
                 parents.push(p);
             },
             Type::Integer(x) => {
-                new_node = if x == 0 {
-                    Some(graph.add_int(0))
+                let node = if x == 0 {
+                    graph.add_int(0)
                 } else if x < 0 {
-                    Some(graph.add_int(-1))
+                    graph.add_int(-1)
                 } else {
-                    Some(graph.add_int(1))
+                    graph.add_int(1)
                 };
+                created_nodes.push(node);
+                new_node = Some(node);
                 parents.push(p);
             },
             _ => ()
         },
         Operator::Neg(p) => match try!(graph.get_node(p)).node_type{
             Type::Float(x) => {
-                new_node = Some(graph.add_float(-x));
+                let node = graph.add_float(-x);
+                created_nodes.push(node);
+                new_node = Some(node);
                 parents.push(p);
             },
             Type::Integer(x) => {
-                new_node = Some(graph.add_int(-x));
+                let node = graph.add_int(-x);
+                created_nodes.push(node);
+                new_node = Some(node);
                 parents.push(p);
             },
             _ => ()
@@ -123,89 +103,119 @@ fn single_fold(graph: &mut ComputeGraph, old: usize, op: Operator) -> Result<(),
         Operator::Div(p) | Operator::MatrixInverse(p)
         => match try!(graph.get_node(p)).node_type{
             Type::Float(x) => {
-                new_node = Some(graph.add_float(1.0/x));
+                let node = graph.add_float(1.0/x);
+                created_nodes.push(node);
+                new_node = Some(node);
                 parents.push(p);
             },
             Type::Integer(x) => {
-                new_node = Some(graph.add_float(1.0/(x as f64)));
+                let node = graph.add_float(1.0/(x as f64));
+                created_nodes.push(node);
+                new_node = Some(node);
                 parents.push(p);
             },
             _ => ()
         },
         Operator::Cos(p) => match try!(graph.get_node(p)).node_type{
             Type::Float(x) => {
-                new_node = Some(graph.add_float(x.cos()));
+                let node = graph.add_float(x.cos());
+                created_nodes.push(node);
+                new_node = Some(node);
                 parents.push(p);
             },
             Type::Integer(x) => {
-                new_node = Some(graph.add_float((x as f64).cos()));
+                let node = graph.add_float((x as f64).cos());
+                created_nodes.push(node);
+                new_node = Some(node);
                 parents.push(p);
             },
             _ => ()
         },
         Operator::Sin(p) => match try!(graph.get_node(p)).node_type{
             Type::Float(x) => {
-                new_node = Some(graph.add_float(x.sin()));
+                let node = graph.add_float(x.sin());
+                created_nodes.push(node);
+                new_node = Some(node);
                 parents.push(p);
             },
             Type::Integer(x) => {
-                new_node = Some(graph.add_float((x as f64).sin()));
+                let node = graph.add_float((x as f64).sin());
+                created_nodes.push(node);
+                new_node = Some(node);
                 parents.push(p);
             },
             _ => ()
         },
         Operator::Tan(p) => match try!(graph.get_node(p)).node_type{
             Type::Float(x) => {
-                new_node = Some(graph.add_float(x.tan()));
+                let node = graph.add_float(x.tan());
+                created_nodes.push(node);
+                new_node = Some(node);
                 parents.push(p);
             },
             Type::Integer(x) => {
-                new_node = Some(graph.add_float((x as f64).tan()));
+                let node = graph.add_float((x as f64).tan());
+                created_nodes.push(node);
+                new_node = Some(node);
                 parents.push(p);
             },
             _ => ()
         },
         Operator::CosH(p) => match try!(graph.get_node(p)).node_type{
             Type::Float(x) => {
-                new_node = Some(graph.add_float(x.cosh()));
+                let node = graph.add_float(x.cosh());
+                created_nodes.push(node);
+                new_node = Some(node);
                 parents.push(p);
             },
             Type::Integer(x) => {
-                new_node = Some(graph.add_float((x as f64).cosh()));
+                let node = graph.add_float((x as f64).cosh());
+                created_nodes.push(node);
+                new_node = Some(node);
                 parents.push(p);
             },
             _ => ()
         },
         Operator::SinH(p) => match try!(graph.get_node(p)).node_type{
             Type::Float(x) => {
-                new_node = Some(graph.add_float(x.sinh()));
+                let node = graph.add_float(x.sinh());
+                created_nodes.push(node);
+                new_node = Some(node);
                 parents.push(p);
             },
             Type::Integer(x) => {
-                new_node = Some(graph.add_float((x as f64).sinh()));
+                let node = graph.add_float((x as f64).sinh());
+                created_nodes.push(node);
+                new_node = Some(node);
                 parents.push(p);
             },
             _ => ()
         },
         Operator::TanH(p) => match try!(graph.get_node(p)).node_type{
             Type::Float(x) => {
-                new_node = Some(graph.add_float(x.tanh()));
+                let node = graph.add_float(x.tanh());
+                created_nodes.push(node);
+                new_node = Some(node);
                 parents.push(p);
             },
             Type::Integer(x) => {
-                new_node = Some(graph.add_float((x as f64).tanh()));
+                let node = graph.add_float((x as f64).tanh());
+                created_nodes.push(node);
+                new_node = Some(node);
                 parents.push(p);
             },
             _ => ()
         },
-        Operator::Abs(p) | Operator::L2(p,_)| Operator::L1(p,_)
+        Operator::Abs(p) | Operator::L1(p,_)
         => match try!(graph.get_node(p)).node_type{
             Type::Float(x) => {
                 if x > 0.0{
                     new_node = Some(p);
                     parents.push(p);
                 } else {
-                    new_node = Some(graph.add_float(-x));
+                    let node = graph.add_float(-x);
+                    created_nodes.push(node);
+                    new_node = Some(node);
                     parents.push(p);
                 }
             },
@@ -214,63 +224,101 @@ fn single_fold(graph: &mut ComputeGraph, old: usize, op: Operator) -> Result<(),
                     new_node = Some(p);
                     parents.push(p);
                 } else {
-                    new_node = Some(graph.add_int(-x));
+                    let node = graph.add_int(-x);
+                    created_nodes.push(node);
+                    new_node = Some(node);
                     parents.push(p);
                 }
             },
             _ => ()
         },
-        Operator::Log(p) => match try!(graph.get_node(p)).node_type{
+        Operator::L2(p,_)
+        => match try!(graph.get_node(p)).node_type{
             Type::Float(x) => {
-                new_node = Some(graph.add_float(x.ln()));
+                let node = graph.add_float(x*x);
+                created_nodes.push(node);
+                new_node = Some(node);
                 parents.push(p);
             },
             Type::Integer(x) => {
-                new_node = Some(graph.add_float((x as f64).ln()));
+                let node = graph.add_int(x*x);
+                created_nodes.push(node);
+                new_node = Some(node);
+                parents.push(p);
+            },
+            _ => ()
+        },
+        Operator::Log(p) => match try!(graph.get_node(p)).node_type{
+            Type::Float(x) => {
+                let node = graph.add_float(x.ln());
+                created_nodes.push(node);
+                new_node = Some(node);
+                parents.push(p);
+            },
+            Type::Integer(x) => {
+                let node = graph.add_float((x as f64).ln());
+                created_nodes.push(node);
+                new_node = Some(node);
                 parents.push(p);
             },
             _ => ()
         },
         Operator::Exp(p) => match try!(graph.get_node(p)).node_type{
             Type::Float(x) => {
-                new_node = Some(graph.add_float(x.exp()));
+                let node = graph.add_float(x.exp());
+                created_nodes.push(node);
+                new_node = Some(node);
                 parents.push(p);
             },
             Type::Integer(x) => {
-                new_node = Some(graph.add_float((x as f64).exp()));
+                let node = graph.add_float((x as f64).exp());
+                created_nodes.push(node);
+                new_node = Some(node);
                 parents.push(p);
             },
             _ => ()
         },
         Operator::Sqrt(p) => match try!(graph.get_node(p)).node_type{
             Type::Float(x) => {
-                new_node = Some(graph.add_float(x.sqrt()));
+                let node = graph.add_float(x.sqrt());
+                created_nodes.push(node);
+                new_node = Some(node);
                 parents.push(p);
             },
             Type::Integer(x) => {
-                new_node = Some(graph.add_float((x as f64).sqrt()));
+                let node = graph.add_float((x as f64).sqrt());
+                created_nodes.push(node);
+                new_node = Some(node);
                 parents.push(p);
             },
             _ => ()
         },
         Operator::Square(p) => match try!(graph.get_node(p)).node_type{
             Type::Float(x) => {
-                new_node = Some(graph.add_float(x*x));
+                let node = graph.add_float(x*x);
+                created_nodes.push(node);
+                new_node = Some(node);
                 parents.push(p);
             },
             Type::Integer(x) => {
-                new_node = Some(graph.add_int(x*x));
+                let node = graph.add_int(x*x);
+                created_nodes.push(node);
+                new_node = Some(node);
                 parents.push(p);
             },
             _ => ()
         },
         Operator::Sigmoid(p) => match try!(graph.get_node(p)).node_type{
             Type::Float(x) => {
-                new_node = Some(graph.add_float(1.0 / (1.0 + (-x).exp())));
+                let node = graph.add_float(1.0 / (1.0 + (-x).exp()));
+                created_nodes.push(node);
+                new_node = Some(node);
                 parents.push(p);
             },
             Type::Integer(x) => {
-                new_node = Some(graph.add_float(1.0 / (1.0 + (-x as f64).exp())));
+                let node = graph.add_float(1.0 / (1.0 + (-x as f64).exp()));
+                created_nodes.push(node);
+                new_node = Some(node);
                 parents.push(p);
             },
             _ => ()
@@ -281,7 +329,9 @@ fn single_fold(graph: &mut ComputeGraph, old: usize, op: Operator) -> Result<(),
                 0...1 => (),
                 2 => {
                     let val = if values[0] < values[1] {1} else {0};
-                    new_node = Some(graph.add_int(val));
+                    let node = graph.add_int(val);
+                    created_nodes.push(node);
+                    new_node = Some(node);
                     parents.push(p_1);
                     parents.push(p_2);
                 },
@@ -294,7 +344,9 @@ fn single_fold(graph: &mut ComputeGraph, old: usize, op: Operator) -> Result<(),
                 0...1 => (),
                 2 => {
                     let val = if values[0] <= values[1] {1} else {0};
-                    new_node = Some(graph.add_int(val));
+                    let node = graph.add_int(val);
+                    created_nodes.push(node);
+                    new_node = Some(node);
                     parents.push(p_1);
                     parents.push(p_2);
                 },
@@ -307,7 +359,9 @@ fn single_fold(graph: &mut ComputeGraph, old: usize, op: Operator) -> Result<(),
                 0...1 => (),
                 2 => {
                     let val = if values[0] > values[1] {1} else {0};
-                    new_node = Some(graph.add_int(val));
+                    let node = graph.add_int(val);
+                    created_nodes.push(node);
+                    new_node = Some(node);
                     parents.push(p_1);
                     parents.push(p_2);
                 },
@@ -320,7 +374,9 @@ fn single_fold(graph: &mut ComputeGraph, old: usize, op: Operator) -> Result<(),
                 0...1 => (),
                 2 => {
                     let val = if values[0] >= values[1] {1} else {0};
-                    new_node = Some(graph.add_int(val));
+                    let node = graph.add_int(val);
+                    created_nodes.push(node);
+                    new_node = Some(node);
                     parents.push(p_1);
                     parents.push(p_2);
                 },
@@ -333,11 +389,13 @@ fn single_fold(graph: &mut ComputeGraph, old: usize, op: Operator) -> Result<(),
                 0...1 => (),
                 2 => {
                     let val = if values[0] > values[1] {values[0]} else {values[1]};
-                    new_node = if val.floor() == val {
-                        Some(graph.add_int(val as i64))
+                    let node = if val.floor() == val {
+                        graph.add_int(val as i64)
                     } else {
-                        Some(graph.add_float(val))
+                        graph.add_float(val)
                     };
+                    created_nodes.push(node);
+                    new_node = Some(node);
                     parents.push(p_1);
                     parents.push(p_2);
                 },
@@ -350,13 +408,15 @@ fn single_fold(graph: &mut ComputeGraph, old: usize, op: Operator) -> Result<(),
                 0...1 => (),
                 2 => {
                     let val = if values[0] < values[1] {values[0]} else {values[1]};
-                    new_node = if val.floor() == val {
-                            Some(graph.add_int(val as i64))
+                    let node = if val.floor() == val {
+                            graph.add_int(val as i64)
                         } else {
-                            Some(graph.add_float(val))
+                            graph.add_float(val)
                         };
-                    parents.push(p_1);
-                    parents.push(p_2);
+                        created_nodes.push(node);
+                        new_node = Some(node);
+                        parents.push(p_1);
+                        parents.push(p_2);
                 },
                 _ => unreachable!()
             }
@@ -369,12 +429,16 @@ fn single_fold(graph: &mut ComputeGraph, old: usize, op: Operator) -> Result<(),
                     match indexes[0] {
                         0 => match values[0] {
                             0.0 => {
-                                new_node = Some(graph.add_int(0));
+                                let node = graph.add_int(0);
+                                created_nodes.push(node);
+                                new_node = Some(node);
                                 parents.push(p_1);
                                 parents.push(p_2);
                             },
                             1.0 => {
-                                new_node = Some(graph.add_int(1));
+                                let node = graph.add_int(1);
+                                created_nodes.push(node);
+                                new_node = Some(node);
                                 parents.push(p_1);
                                 parents.push(p_2);
                             },
@@ -382,7 +446,9 @@ fn single_fold(graph: &mut ComputeGraph, old: usize, op: Operator) -> Result<(),
                         },
                         1 => match values[0]{
                             0.0 => {
-                                new_node = Some(graph.add_int(1));
+                                let node = graph.add_int(1);
+                                created_nodes.push(node);
+                                new_node = Some(node);
                                 parents.push(p_1);
                                 parents.push(p_2);
                             },
@@ -392,7 +458,9 @@ fn single_fold(graph: &mut ComputeGraph, old: usize, op: Operator) -> Result<(),
                                 parents.push(p_2);
                             },
                             2.0 => {
-                                new_node = Some(try!(graph.add_operation(Operator::Square(p_1))));
+                                let node = try!(graph.add_operation(Operator::Square(p_1)));
+                                created_nodes.push(node);
+                                new_node = Some(node);
                                 parents.push(p_1);
                                 parents.push(p_2);
                             },
@@ -403,11 +471,13 @@ fn single_fold(graph: &mut ComputeGraph, old: usize, op: Operator) -> Result<(),
                 },
                 2 => {
                     let val = values[0].powf(values[1]);
-                    new_node = if val.floor() == val {
-                        Some(graph.add_int(val as i64))
+                    let node = if val.floor() == val {
+                        graph.add_int(val as i64)
                     } else {
-                        Some(graph.add_float(val))
+                        graph.add_float(val)
                     };
+                    created_nodes.push(node);
+                    new_node = Some(node);
                     parents.push(p_1);
                     parents.push(p_2);
                 },
@@ -421,7 +491,9 @@ fn single_fold(graph: &mut ComputeGraph, old: usize, op: Operator) -> Result<(),
                 Some(ref operator) => {
                     match *operator {
                         Operator::Zeros(_,_) => {
-                            new_node = Some(graph.add_int(0));
+                            let node = graph.add_int(0);
+                            created_nodes.push(node);
+                            new_node = Some(node);
                             parents.push(p_1);
                             parents.push(p_2);
                         },
@@ -442,12 +514,17 @@ fn single_fold(graph: &mut ComputeGraph, old: usize, op: Operator) -> Result<(),
                     Some(ref operator) => {
                         match *operator {
                             Operator::Zeros(_,_) => {
-                                new_node = Some(graph.add_int(0));
+                                let node = graph.add_int(0);
+                                created_nodes.push(node);
+                                new_node = Some(node);
                                 parents.push(p_1);
                                 parents.push(p_2);
                             },
                             Operator::Eye(_) => {
-                                new_node = Some(try!(graph.add_operation(Operator::Dot(vec![p_1, p_1]))));
+                                println!("2");
+                                let node = try!(graph.add_operation(Operator::Dot(vec![p_1, p_1])));
+                                created_nodes.push(node);
+                                new_node = Some(node);
                                 parents.push(p_1);
                                 parents.push(p_2);
                             }
@@ -463,11 +540,13 @@ fn single_fold(graph: &mut ComputeGraph, old: usize, op: Operator) -> Result<(),
                     0...1 => (),
                     2 => {
                         let val = if values[0] < values[1] {values[0]} else {values[1]};
-                        new_node = if val.floor() == val {
-                                Some(graph.add_int(val as i64))
+                        let node = if val.floor() == val {
+                                graph.add_int(val as i64)
                             } else {
-                                Some(graph.add_float(val))
+                                graph.add_float(val)
                             };
+                        created_nodes.push(node);
+                        new_node = Some(node);
                         parents.push(p_1);
                         parents.push(p_2);
                     },
@@ -479,7 +558,7 @@ fn single_fold(graph: &mut ComputeGraph, old: usize, op: Operator) -> Result<(),
             match try!(graph.get_node(p_2)).node_type {
                 Type::Float(_) => return Err("HorzCat with floating point second argument".to_string()),
                 Type::Integer(x) => match x{
-                    0 => return Err("HorzCat with 0 as second argument".to_string()),
+                    0 => return Err("ReplicateHorz with 0 as second argument".to_string()),
                     1 => {
                         new_node = Some(p_1);
                         parents.push(p_1);
@@ -492,7 +571,7 @@ fn single_fold(graph: &mut ComputeGraph, old: usize, op: Operator) -> Result<(),
         },
         Operator::ReplicateVert(p_1, p_2) => {
             match try!(graph.get_node(p_2)).node_type {
-                Type::Float(_) => return Err("HorzCat with floating point second argument".to_string()),
+                Type::Float(_) => return Err("ReplicateVert with floating point second argument".to_string()),
                 Type::Integer(x) => match x{
                     0 => return Err("HorzCat with 0 as second argument".to_string()),
                     1 => {
@@ -508,7 +587,7 @@ fn single_fold(graph: &mut ComputeGraph, old: usize, op: Operator) -> Result<(),
         Operator::Add(ref p) | Operator::Mul(ref p) | Operator::Dot(ref p)=> {
             let (indexes, values) = try!(extract_values(graph, p));
             match values.len(){
-                0...1 => return Err("Nary operator with 0 or 1 arguments".to_string()),
+                0...1 => (),
                 _ => {
                     let x = match op {
                         Operator::Add(_) =>  values.iter().fold(0.0, |acc, &x| acc + x),
@@ -516,23 +595,28 @@ fn single_fold(graph: &mut ComputeGraph, old: usize, op: Operator) -> Result<(),
                             => values.iter().fold(1.0, |acc, &x| acc * x),
                         _ => unreachable!()
                     };
-                    if parents.len() == values.len() {
-                        if x == x.floor() {
-                            new_node = Some(graph.add_int(x as i64));
+                    if p.len() == values.len() {
+                        let node = if x == x.floor() {
+                            graph.add_int(x as i64)
                         } else {
-                            new_node = Some(graph.add_float(x));
-                        }
-                        parents.push(p[0]);
-                        parents.push(p[1]);
+                            graph.add_float(x)
+                        };
+                        created_nodes.push(node);
+                        new_node = Some(node);
+                        parents.extend(p.iter().cloned());
                     } else {
                         // Combine all constants
                         let combined = if x == x.floor() {graph.add_int(x as i64)}
                             else {graph.add_float(x)};
+                        created_nodes.push(combined);
                         // All parents which were not constants + combined
                         let mut new_parents  = p.iter().enumerate().filter(|&(i,_)| !indexes.contains(&i)).map(|(_,v)| v.clone()).collect::<Vec<_>>();
                         new_parents.push(combined);
+                        // println!("Parents:{}, {:?} - {:?}", new_parents.len(), indexes, p);
                         let new_op = try!(op.recreate(new_parents));
-                        new_node = Some(try!(graph.add_operation(new_op)));
+                        let node = try!(graph.add_operation(new_op));
+                        created_nodes.push(node);
+                        new_node = Some(node);
                         parents.extend(p.iter().cloned());
                     }
                 }
@@ -551,9 +635,22 @@ fn single_fold(graph: &mut ComputeGraph, old: usize, op: Operator) -> Result<(),
             }
             // Remove node from the graph
             graph.insert_node(old, None);
-            Ok(())
+            if graph.target == old{
+                graph.target = node;
+            }
+            graph.outputs.iter().position(|&x| x == old).map(|x| {graph.outputs.push(node); graph.outputs.swap_remove(x);});
+            // Remove node from the ordering and put all created nodes
+            let order:usize = graph.ordering.iter().position(|&x| x == old).unwrap();
+            println!("Ordering: {:?}",graph.ordering);
+            println!("Removing {} from position {}",old,order);
+            let _ = graph.ordering.remove(order);
+            for _ in created_nodes.iter(){
+                let i = graph.ordering.pop().unwrap();
+                graph.ordering.insert(order, i);
+            }
+            Ok(true)
         },
-        None => Ok(())
+        None => Ok(false)
     }
 }
 

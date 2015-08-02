@@ -592,6 +592,31 @@ impl Operator{
 		}
 	}
 
+	pub fn get_ancestors(&self) -> Vec<usize> {
+		match *self {
+			Operator::Const(ref p) | Operator::Eye(ref p) | Operator::Size(ref p,_) | Operator::Sign(ref p)
+			| Operator::Neg(ref p)| Operator::Div(ref p)| Operator::MatrixInverse(ref p)
+			| Operator::Transpose(ref p)| Operator::MatrixDiag(ref p) | Operator::VectorDiag(ref p)
+			| Operator::Cos(ref p) | Operator::Sin(ref p)| Operator::Tan(ref p)
+			| Operator::CosH(ref p)| Operator::SinH(ref p)| Operator::TanH(ref p)
+			| Operator::Abs(ref p) | Operator::Log(ref p)| Operator::Exp(ref p)| Operator::Sqrt(ref p)
+			| Operator::Square(ref p) | Operator::Sigmoid(ref p) | Operator::Sum(ref p,_)
+			| Operator::L2(ref p,_)| Operator::L1(ref p,_) => vec![p.clone()],
+			Operator::Ones(ref p1, ref p2) | Operator::Zeros(ref p1, ref p2)| Operator::LessThan(ref p1, ref p2)
+			| Operator::LessThanOrEqual(ref p1, ref p2) | Operator::GreaterThan(ref p1, ref p2)
+			| Operator::GreaterThanOrEqual(ref p1, ref p2)| Operator::Max(ref p1, ref p2)
+			| Operator::Min(ref p1, ref p2) | Operator::Pow(ref p1, ref p2) | Operator::Quadratic(ref p1, ref p2)
+			| Operator::ReplicateHorz(ref p1, ref p2) | Operator::ReplicateVert(ref p1, ref p2)
+				=> vec![p1.clone(),p2.clone()],
+			Operator::Add(ref p)| Operator::Mul(ref p) | Operator::Dot(ref p)
+			| Operator::HorzCat(ref p) | Operator::VertCat(ref p) => p.clone(),
+			Operator::SubIndex(ref p,ref a1,ref a2,ref a3,ref a4)
+			| Operator::SubAssign(ref p,ref a1,ref a2,ref a3,ref a4)
+				=> vec![p.clone(),a1.clone(),a2.clone(),a3.clone(),a4.clone()],
+			Operator::Reshape(ref p,ref a1,ref a2) => vec![p.clone(),a1.clone(),a2.clone()]
+		}
+	}
+
 	pub fn unary(&self) -> bool {
 		match *self {
             Operator::Const(_) | Operator::Eye(_) | Operator::Size(_,_) | Operator::Sign(_)
