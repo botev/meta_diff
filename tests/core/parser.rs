@@ -76,12 +76,12 @@ parametarise_test!(parse_fail,
 	sin = tanh(w*vertcat(h,1));
 	L = l2(h-y,0);
 	end"],
-	["Error at 4:13: Comparison operators not supported!",
-	"function [L] = mat(@w,x,y)
-	h = tanh(w*vertcat(x,1));
-	s = sinh(w*horzcat(h,1));
-	L = l1(h>y,0);
-	end"],
+	// ["Error at 4:13: Comparison operators not supported!",
+	// "function [L] = mat(@w,x,y)
+	// h = tanh(w*vertcat(x,1));
+	// s = sinh(w*horzcat(h,1));
+	// L = l1(h>y,0);
+	// end"],
 	["Error at 4:5: Output variable \'k\' has not been defined",
 	"function [L,k] = mat(@w,x,y,@z)
 	h = w + x dot y * z;
