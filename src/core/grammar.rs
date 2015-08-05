@@ -1,5 +1,7 @@
 use std::collections::{HashMap, HashSet};
-use core::graph::*;
+use super::operator::*;
+use super::node::*;
+use super::graph::*;
 
 #[context]
 graph_res -> Result<ComputeGraph, ParseError> = {Ok(ComputeGraph::new())}
@@ -33,7 +35,6 @@ functionDefinition = (eol / __)* FUNCTION __ outputs: functionReturn __? EQ __? 
 					}
 				}
 			}
-			graph.target = graph.outputs[0];
 		},
 		Err(ref msg) => {result = Err(msg.clone());}
 	}
@@ -91,19 +92,33 @@ statement = name: ID __? EQ __? id:expression __? SEMI {
 }
 
 /// Logical operators
-g1	= NEQ / DOUBLE_EQ / GRTE / GRT / LSTE / LST
+g1 -> OperatorType =
+	GTE {::std::convert::From::from(ConstantBinaryOperatorType::GreaterThanOrEqual)}
+	/ GT {::std::convert::From::from(ConstantBinaryOperatorType::GreaterThan)}
+	/ LTE {::std::convert::From::from(ConstantBinaryOperatorType::LessThanOrEqual)}
+	/ LT {::std::convert::From::from(ConstantBinaryOperatorType::LessThan)}
+ 	/ NEQ {::std::convert::From::from(ConstantBinaryOperatorType::NotEquals)}
+	/ DOUBLE_EQ {::std::convert::From::from(ConstantBinaryOperatorType::Equals)}
+
 /// Plus or Minus operators
-g2	-> Operator = PLUS {Operator::Add(Vec::new())} / MINUS {Operator::Neg(0)}
+g2	-> bool
+	= PLUS {true}
+	/ MINUS {false}
+
 /// Multiplication and division operators
-g3	-> Operator = TIMES {Operator::Mul(Vec::new())}  / DIVISION {Operator::Div(0)}
+g3	-> bool
+	= TIMES {true}
+	/ DIVISION {false}
 
 /// Currently the logical operators are not supported
-expression	-> usize = vars: e1 ++ (__? g1 __?) {
+expression	-> usize = first: e1  second:(__? op:g1 __? var:expression{(op,var)})? {
 	let result = match *graph_res{
-		Ok(ref mut graph) => match vars.len(){
-			0 => unreachable!(),
-			1 => Ok(vars[0]),
-			_ => result_err!(input, state, "Comparison operators not supported!".to_string())
+		Ok(ref mut graph) => match second {
+			Some(tuple) => match graph.add_operation(tuple.0, vec![first, tuple.1]) {
+				Ok(var) => Ok(var),
+				Err(err) => result_err!(input, state, format!("{}",err))
+			},
+			None => Ok(first)
 		},
 		Err(ref msg) => Err(msg.clone())
 	};
@@ -117,13 +132,15 @@ expression	-> usize = vars: e1 ++ (__? g1 __?) {
 /// addition and unary negation
 e1	-> usize = first: e2 rest:( __? op:g2 __? var:e2 {
 	let result = match *graph_res{
-		Ok(ref mut graph) => match op {
-			Operator::Add(_) => Ok(var),
-			Operator::Neg(_) => match graph.add_operation(Operator::Neg(var)) {
-				Ok(var) => Ok(var),
-				Err(msg) => result_err!(input, state, msg)
-			},
-			_ => unreachable!()
+		Ok(ref mut graph) => {
+			if op {
+				Ok(var)
+			} else {
+				match graph.add_operation(UnaryOperatorType::Neg, vec![var]) {
+					Ok(var) => Ok(var),
+					Err(err) => result_err!(input, state, format!("{}",err))
+				}
+			}
 		},
 		Err(ref msg) => Err(msg.clone())
 	};
@@ -138,9 +155,9 @@ e1	-> usize = first: e2 rest:( __? op:g2 __? var:e2 {
 			_ => {
 				let mut vars = vec![first];
 				vars.extend(rest);
-				match graph.add_operation(Operator::Add(vars)) {
+				match graph.add_operation(NaryOperatorType::Add, vars) {
 					Ok(var) => Ok(var),
-					Err(msg) => result_err!(input, state, msg)
+					Err(err) => result_err!(input, state, format!("{}",err))
 				}
 			}
 		},
@@ -156,13 +173,15 @@ e1	-> usize = first: e2 rest:( __? op:g2 __? var:e2 {
 /// multiplication and unary division
 e2	-> usize = first: e3 rest:( __? op:g3 __? var:e3  {
 	let result = match *graph_res{
-		Ok(ref mut graph) => match op {
-			Operator::Mul(_) => Ok(var),
-			Operator::Div(_) => match graph.add_operation(Operator::Div(var)) {
-				Ok(var) => Ok(var),
-				Err(msg) => result_err!(input, state, msg)
-			},
-			_ => unreachable!()
+		Ok(ref mut graph) => {
+			if op {
+				Ok(var)
+			} else {
+				match graph.add_operation(UnaryOperatorType::Div, vec![var]) {
+					Ok(var) => Ok(var),
+					Err(err) => result_err!(input, state, format!("{}",err))
+				}
+			}
 		},
 		Err(ref msg) => Err(msg.clone())
 	};
@@ -177,9 +196,9 @@ e2	-> usize = first: e3 rest:( __? op:g3 __? var:e3  {
 			_ => {
 				let mut vars = vec![first];
 				vars.extend(rest);
-				match graph.add_operation(Operator::Mul(vars)) {
+				match graph.add_operation(NaryOperatorType::Mul, vars) {
 					Ok(var) => Ok(var),
-					Err(msg) =>result_err!(input, state, msg)
+					Err(err) => result_err!(input, state, format!("{}",err))
 				}
 			}
 		},
@@ -197,9 +216,9 @@ e3	-> usize = vars: e4 ++ (__? DOT_PRODUCT __?) {
 		Ok(ref mut graph) => match vars.len() {
 			0 => unreachable!(),
 			1 => Ok(vars[0]),
-			_ => match graph.add_operation(Operator::Dot(vars)) {
+			_ => match graph.add_operation(NaryOperatorType::Dot, vars) {
 				Ok(var) => Ok(var),
-				Err(msg) => result_err!(input, state, msg)
+				Err(err) => result_err!(input, state, format!("{}",err))
 			}
 		},
 		Err(ref msg) => Err(msg.clone())
@@ -213,10 +232,10 @@ e3	-> usize = vars: e4 ++ (__? DOT_PRODUCT __?) {
 /// Unary negation
 e4	-> usize = m:MINUS? __? var: e5 {
 	let result = match *graph_res{
-		Ok(ref mut graph) => match m{
-			Some(_) => match graph.add_operation(Operator::Neg(var)) {
+		Ok(ref mut graph) => match m {
+			Some(_) => match graph.add_operation(UnaryOperatorType::Neg,vec![var]) {
 				Ok(var) => Ok(var),
-				Err(msg) => result_err!(input, state, msg)
+				Err(err) => result_err!(input, state, format!("{}",err))
 			},
 			None => Ok(var)
 		},
@@ -232,9 +251,9 @@ e4	-> usize = m:MINUS? __? var: e5 {
 e5  -> usize = first: e6 second: (__? EXP __? var:e6 {var})? {
 	let result = match *graph_res{
 		Ok(ref mut graph) => match second{
-			Some(id) => match graph.add_operation(Operator::Pow(first, id)) {
+			Some(id) => match graph.add_operation(BinaryOperatorType::Pow,vec![first,id]) {
 				Ok(var) => Ok(var),
-				Err(msg) => result_err!(input, state, msg)
+				Err(err) => result_err!(input, state, format!("{}",err))
 			},
 			None => Ok(first)
 		},
@@ -250,9 +269,9 @@ e5  -> usize = first: e6 second: (__? EXP __? var:e6 {var})? {
 e6	-> usize = var: unaryExpression tr: TRANSPOSE? {
 	let mut result = match *graph_res{
 		Ok(ref mut graph) => match tr{
-			Some(_) => match graph.add_operation(Operator::Transpose(var)) {
+			Some(_) => match graph.add_operation(UnaryOperatorType::Transpose,vec![var]) {
 				Ok(var) => Ok(var),
-				Err(msg) => result_err!(input, state, msg)
+				Err(err) => result_err!(input, state, format!("{}",err))
 			},
 			None => Ok(var)
 		},
@@ -287,9 +306,10 @@ indexedVar -> usize =  name: ID LSBRACE __? arg1: expression __? COMMA __? arg2:
 arg3:expression __? COMMA __? arg4:expression __? RSBRACE {
 	let result = match *graph_res{
 		Ok(ref mut graph) => match variable_table.get(&name) {
-			Some(id) => match graph.add_operation(Operator::SubIndex(*id,arg1,arg2,arg3,arg4)) {
+			Some(id) => match graph.add_operation(
+				SpecialUnaryOperatorType::SubIndex,vec![*id,arg1,arg2,arg3,arg4]) {
 				Ok(var) => Ok(var),
-				Err(msg) => result_err!(input, state, msg)
+				Err(err) => result_err!(input, state, format!("{}",err))
 			},
 			None => result_err!(input, state, format!("Use of undefined variable \'{}\'", name))
 		},
@@ -308,9 +328,13 @@ varDotFunc -> usize = name:ID DOT func:ID args:paramList {
 			Some(id) => {
 				let mut newargs = args.clone();
 				newargs.insert(0,*id);
-				match graph.string_to_operator(func, newargs) {
-					Ok(var) => Ok(var),
-					Err(msg) => result_err!(input, state, msg)
+				if ComputeGraph::is_function_name(&func) {
+					match graph.string_to_operator(func, newargs) {
+						Ok(var) => Ok(var),
+						Err(err) => result_err!(input, state, format!("{}",err))
+					}
+				} else {
+					result_err!(input, state, format!("Use of undefined function \'{}\'", func))
 				}
 			},
 			None => result_err!(input, state, format!("Use of undefined variable \'{}\'", name))
@@ -326,9 +350,15 @@ varDotFunc -> usize = name:ID DOT func:ID args:paramList {
 /// Function call
 funcCall -> usize = func:ID args:paramList {
 	let result = match *graph_res{
-		Ok(ref mut graph) => match graph.string_to_operator(func, args) {
-			Ok(var) => Ok(var),
-			Err(msg) => result_err!(input, state, msg)
+		Ok(ref mut graph) => {
+			if ComputeGraph::is_function_name(&func) {
+				match graph.string_to_operator(func, args) {
+					Ok(var) => Ok(var),
+					Err(err) => result_err!(input, state, format!("{}",err))
+				}
+			} else {
+				result_err!(input, state, format!("Use of undefined function \'{}\'", func))
+			}
 		},
 		Err(ref msg) => Err(msg.clone())
 	};
@@ -379,7 +409,7 @@ FUNCTION= "function";
 
 // Operators and assignments
 //
-EQ	= "=";
+
 
 // // Binary - Not supported
 // BIN_OR	= "|";
@@ -392,10 +422,11 @@ EQ	= "=";
 // Comparison - Not supported
 DOUBLE_EQ	= "==";
 NEQ	= "~=";
-LST	= "<";
-LSTE	= "<=";
-GRT	= ">";
-GRTE	= ">=";
+LTE = "<=";
+GTE = ">=";
+LT	= "<";
+GT	= ">";
+EQ	= "=";
 
 // Standard arithmetic
 PLUS	= "+";
@@ -476,8 +507,8 @@ __  = [ \t\u{00A0}\u{FEFF}\u{1680}\u{180E}\u{2000}-\u{200A}\u{202F}\u{205F}\u{30
 //                    expected: state.expected,
 //                    msg: None,})
 // }
-
-
+//
+//
 // macro_rules! result_err {
 // 	($input:ident , $state:ident , $msg:expr) => {
 // 		{

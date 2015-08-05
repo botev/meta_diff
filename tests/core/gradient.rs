@@ -37,36 +37,36 @@ fn grad_ok(nodes_before: usize, nodes_after: usize, source: &str){
 // 	}
 // }
 
-parametarise_test!(grad_ok,
-	[8,8,
-	"function [d] = mat(a,b)
-	c = a + b * a';
-	d = l2(c,0) * l1(c,0);
-	end" ],
-	[14,36,
-	"function [L] = mat(@w,x,y)
-	h = tanh(w*vertcat(x,1));
-	h = tanh(w*vertcat(h,1));
-	L = l2(h-y,0);
-	end"],
-	[14,23,
-	"function [L] = mat(@w,x,y)
-	h = tanh(w*vertcat(x,1));
-	s = sinh(w*horzcat(h,1));
-	L = l1(h-y,0);
-	end"],
-	[10,18,
-	"function [L] = mat(@w,x,y,@z)
-	h = w + x dot y * z;
-	L = sum(h^2,0);
-	end"],
-	[14,19,
-	"function [L] = mat(@w,x,y)
-	h = const(w*vertcat(x,1));
-	s = diagV(w*horzcat(h,1));
-	L = l1(s-h,0);
-	end"]
-);
+// parametarise_test!(grad_ok,
+// 	[8,8,
+// 	"function [d] = mat(a,b)
+// 	c = a + b * a';
+// 	d = l2(c,0) * l1(c,0);
+// 	end" ],
+// 	[14,36,
+// 	"function [L] = mat(@w,x,y)
+// 	h = tanh(w*vertcat(x,1));
+// 	h = tanh(w*vertcat(h,1));
+// 	L = l2(h-y,0);
+// 	end"],
+// 	[14,23,
+// 	"function [L] = mat(@w,x,y)
+// 	h = tanh(w*vertcat(x,1));
+// 	s = sinh(w*horzcat(h,1));
+// 	L = l1(h-y,0);
+// 	end"],
+// 	[10,18,
+// 	"function [L] = mat(@w,x,y,@z)
+// 	h = w + x dot y * z;
+// 	L = sum(h^2,0);
+// 	end"],
+// 	[14,19,
+// 	"function [L] = mat(@w,x,y)
+// 	h = const(w*vertcat(x,1));
+// 	s = diagV(w*horzcat(h,1));
+// 	L = l1(s-h,0);
+// 	end"]
+// );
 
 // parametarise_test!(grad_fail,
 // 	["Error at 2:7: Use of undefined variable \'d\'",

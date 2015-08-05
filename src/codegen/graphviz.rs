@@ -25,7 +25,7 @@ static MIDDLE_2: &'static str =
 
 pub fn write_graphviz(fmt: &mut Write, graph: & ComputeGraph) -> Result<(),Error>{
 	try!(write!(fmt, "{}", HEADING));
-	let target = graph.target;
+	let target = graph.outputs[0];
 	let outputs = graph.outputs.clone();
 	// Forward Calculation
 	for option in graph.nodes.iter(){
@@ -144,5 +144,5 @@ pub fn write_graphviz(fmt: &mut Write, graph: & ComputeGraph) -> Result<(),Error
 #[inline(always)]
 fn write_node(fmt: &mut Write, node: &ComputeNode, name: &str, color:&str, shape: &str) -> Result<(),Error>{
 	write!(fmt,"\t\t{id}[label=\"{name}\\nId:{id}\\n{op}\"][fillcolor={color},shape={shape}];\n"
-		, id=node.id, name=name,op= node.op.clone().map(|n| n.to_string()).unwrap_or("".to_string()), color=color, shape=shape)
+		, id=node.id, name=name,op=format!("{:?}",node.op.op_type), color=color, shape=shape)
 }

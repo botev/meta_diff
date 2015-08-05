@@ -63,10 +63,11 @@ fn main_proxy(args: Args) ->  Result<(), meta_diff::ProgramError> {
 	let (ids, names) = graph.get_params();
 	let vs = ids.iter().zip(names.iter()).map(|(id, name)| {
 		let v = graph.add_const_input(name.clone() + &"_v".to_string());
-		let op = meta_diff::core::Operator::Mul(vec![*id, v]);
-		graph.add_operation(op).unwrap()
+		let op = meta_diff::core::OperatorType::Nary(meta_diff::core::NaryOperatorType::Mul);
+		graph.add_operation(op,vec![*id, v]).unwrap()
 	}).collect::<Vec<usize>>();
-	let target = try!(graph.add_operation(meta_diff::core::Operator::Add(vs)));
+	let target = try!(graph.add_operation(
+		meta_diff::core::OperatorType::Nary(meta_diff::core::NaryOperatorType::Add),vs));
 	try!(graph.gradient(target));
 	try!(meta_diff::print_graph(&graph, &mut directory, &(file_noextension.clone() + "_hess")));
 	Ok(())

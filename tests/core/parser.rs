@@ -59,7 +59,7 @@ parametarise_test!(parse_ok,
 	[15,
 	"function [L] = mat(@w,x,y)
 	h = const(w*-vertcat(x,1));
-	s = diagV(w*horzcat(h,1));
+	s = vdiag(w*horzcat(h,1));
 	L = l1(s-h,0);
 	end"]
 );
@@ -80,14 +80,14 @@ parametarise_test!(parse_fail,
 	"function [L] = mat(@w,x,y)
 	h = tanh(w*vertcat(x,1));
 	s = sinh(w*horzcat(h,1));
-	L = l1(h>=y,0);
+	L = l1(h>y,0);
 	end"],
 	["Error at 4:5: Output variable \'k\' has not been defined",
 	"function [L,k] = mat(@w,x,y,@z)
 	h = w + x dot y * z;
 	L = sum(h^2,0);
 	end"],
-	["Error at 2:29: HorzCat takes at least two arguments",
+	["Error at 2:29: OperatorError: InvalidOperatorError: The operator Nary(HorzCat) should take 18446744073709551615 parents and 0 arguments, but was found to have 1 parents and 0 arguments.",
 	"function [L] = mat(@w,x,y)
 	h = horzcat(w*-vertcat(x,1));
 	s = diagV(w*horzcat(h,1));

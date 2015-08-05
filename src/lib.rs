@@ -1,3 +1,8 @@
+/// A flag for enabling certain form of verification inside the different modules. This is similar to a debugging flag, but will guarantee semantic checks in each module, where needed.
+///
+/// Until the library has proven to be stable it is required it to always be set to `true`
+const VERIFICATION: bool = true;
+
 pub mod core;
 pub mod optimization;
 pub mod codegen;
@@ -24,6 +29,7 @@ pub fn print_graph(graph: &core::ComputeGraph, directory: &mut std::path::PathBu
 pub enum ProgramError {
 	Io(std::io::Error),
 	Parse(core::ParseError),
+	Graph(core::GraphError),
 	Other(String)
 }
 
@@ -39,6 +45,13 @@ impl From<core::ParseError> for ProgramError {
 	}
 }
 
+impl From<core::GraphError> for ProgramError {
+	fn from(err: core::GraphError) -> ProgramError {
+		ProgramError::Graph(err)
+	}
+}
+
+
 impl From<String> for ProgramError {
 	fn from(err: String) -> ProgramError {
 		ProgramError::Other(err)
@@ -50,6 +63,7 @@ impl std::fmt::Display for ProgramError {
 		match *self {
 			ProgramError::Io(ref err) => err.fmt(f),
 			ProgramError::Parse(ref err) => err.fmt(f),
+			ProgramError::Graph(ref err) => err.fmt(f),
 			ProgramError::Other(ref err) => err.fmt(f),
 		}
 	}
