@@ -1,5 +1,12 @@
 use core::*;
 
+/// Performs constant folding on all nodes of the graph
+///
+/// This means that all nodes which are of types `Int(x)` or `Float(x)` are combined where possible.
+/// Also nodes of the from `OPERATOR_CONST(x)` where `x` is by itself `ConstInput` or `ConstDerivde` are unfolded
+///
+/// Returns true if  the graph has been modified, false otherwise.
+/// An error if any of the operations brings up a `GraphError`
 pub fn constant_folding(graph: &mut ComputeGraph) -> Result<bool, GraphError> {
     let mut outcome = false;
     let mut i = 0;
@@ -29,7 +36,7 @@ fn single_fold(graph: &mut ComputeGraph, old: usize) -> Result<bool, GraphError>
     let mut new_node : Option<usize> = None;
     let mut parents : Vec<usize> = Vec::new();
     match op.op_type{
-        OperatorType::Constant(ConstantOperatorType::Unary(ConstantUnaryOperatorType::Const)) => {
+        OPERATOR_CONST => {
             let parent = try!(graph.get_node(op.parents[0]));
             match parent.node_type {
                 Type::Integer(_) | Type::Float(_) |
@@ -46,10 +53,8 @@ fn single_fold(graph: &mut ComputeGraph, old: usize) -> Result<bool, GraphError>
                 _ => ()
             }
         },
-        OperatorType::Unary(UnaryOperatorType::Transpose)
-        | OperatorType::Unary(UnaryOperatorType::MatrixDiag)
-        | OperatorType::Unary(UnaryOperatorType::VectorDiag)
-        | OperatorType::Unary(UnaryOperatorType::Sum(_)) => {
+        OPERATOR_TRANSPOSE | OPERATOR_MDIAG | OPERATOR_VDIAG
+        | OPERATOR_SUM_ALL | OPERATOR_SUM_1 | OPERATOR_SUM_2  => {
 
             match try!(graph.get_node(op.parents[0])).node_type {
                 Type::Integer(_) | Type::Float(_) => {
@@ -59,7 +64,7 @@ fn single_fold(graph: &mut ComputeGraph, old: usize) -> Result<bool, GraphError>
                 _ => ()
             }
         },
-        OperatorType::Constant(ConstantOperatorType::Unary(ConstantUnaryOperatorType::Size(_))) => {
+        OPERATOR_SIZE_1 | OPERATOR_SIZE_2 => {
             match try!(graph.get_node(op.parents[0])).node_type{
                 Type::Float(_) | Type::Integer(_) => {
                     let node = graph.add_int(1);
@@ -70,7 +75,7 @@ fn single_fold(graph: &mut ComputeGraph, old: usize) -> Result<bool, GraphError>
                 _ => ()
             }
         },
-        OperatorType::Constant(ConstantOperatorType::Unary(ConstantUnaryOperatorType::Sign)) =>{
+        OPERATOR_SIGN =>{
             match try!(graph.get_node(op.parents[0])).node_type {
                 Type::Float(x) => {
                     let node = if x == 0.0 {
@@ -99,7 +104,7 @@ fn single_fold(graph: &mut ComputeGraph, old: usize) -> Result<bool, GraphError>
                 _ => ()
             }
         },
-        OperatorType::Unary(UnaryOperatorType::Neg) => {
+        OPERATOR_NEG => {
             match try!(graph.get_node(op.parents[0])).node_type {
                 Type::Float(x) => {
                     let node = graph.add_float(-x);
@@ -116,8 +121,7 @@ fn single_fold(graph: &mut ComputeGraph, old: usize) -> Result<bool, GraphError>
                 _ => ()
             }
         },
-        OperatorType::Unary(UnaryOperatorType::Div)
-        | OperatorType::Unary(UnaryOperatorType::MatrixInverse) => {
+        OPERATOR_DIV | OPERATOR_MINV => {
             match try!(graph.get_node(op.parents[0])).node_type {
                 Type::Float(x) => {
                     let node = graph.add_float(1.0/x);
@@ -134,7 +138,7 @@ fn single_fold(graph: &mut ComputeGraph, old: usize) -> Result<bool, GraphError>
                 _ => ()
             }
         },
-        OperatorType::Unary(UnaryOperatorType::Cos) => {
+        OPERATOR_COS => {
             match try!(graph.get_node(op.parents[0])).node_type {
                 Type::Float(x) => {
                     let node = graph.add_float(x.cos());
@@ -151,7 +155,7 @@ fn single_fold(graph: &mut ComputeGraph, old: usize) -> Result<bool, GraphError>
                 _ => ()
             }
         },
-        OperatorType::Unary(UnaryOperatorType::Sin) => {
+        OPERATOR_SIN => {
             match try!(graph.get_node(op.parents[0])).node_type {
                 Type::Float(x) => {
                     let node = graph.add_float(x.sin());
@@ -168,7 +172,7 @@ fn single_fold(graph: &mut ComputeGraph, old: usize) -> Result<bool, GraphError>
                 _ => ()
             }
         },
-        OperatorType::Unary(UnaryOperatorType::Tan) => {
+        OPERATOR_TAN => {
             match try!(graph.get_node(op.parents[0])).node_type {
                 Type::Float(x) => {
                     let node = graph.add_float(x.tan());
@@ -185,7 +189,7 @@ fn single_fold(graph: &mut ComputeGraph, old: usize) -> Result<bool, GraphError>
                 _ => ()
             }
         },
-        OperatorType::Unary(UnaryOperatorType::CosH) => {
+        OPERATOR_COSH => {
             match try!(graph.get_node(op.parents[0])).node_type {
                 Type::Float(x) => {
                     let node = graph.add_float(x.cosh());
@@ -202,7 +206,7 @@ fn single_fold(graph: &mut ComputeGraph, old: usize) -> Result<bool, GraphError>
                 _ => ()
             }
         },
-        OperatorType::Unary(UnaryOperatorType::SinH) => {
+        OPERATOR_SINH => {
             match try!(graph.get_node(op.parents[0])).node_type {
                 Type::Float(x) => {
                     let node = graph.add_float(x.sinh());
@@ -219,7 +223,7 @@ fn single_fold(graph: &mut ComputeGraph, old: usize) -> Result<bool, GraphError>
                 _ => ()
             }
         },
-        OperatorType::Unary(UnaryOperatorType::TanH) => {
+        OPERATOR_TANH => {
             match try!(graph.get_node(op.parents[0])).node_type {
                 Type::Float(x) => {
                     let node = graph.add_float(x.tanh());
@@ -236,8 +240,7 @@ fn single_fold(graph: &mut ComputeGraph, old: usize) -> Result<bool, GraphError>
                 _ => ()
             }
         },
-        OperatorType::Unary(UnaryOperatorType::Abs)
-        | OperatorType::Unary(UnaryOperatorType::L1(_)) => {
+        OPERATOR_ABS | OPERATOR_L1_ALL | OPERATOR_L1_1 | OPERATOR_L1_2 => {
             match try!(graph.get_node(op.parents[0])).node_type {
                 Type::Float(x) => {
                     if x > 0.0{
@@ -264,7 +267,7 @@ fn single_fold(graph: &mut ComputeGraph, old: usize) -> Result<bool, GraphError>
                 _ => ()
             }
         },
-        OperatorType::Unary(UnaryOperatorType::L2(_)) => {
+        OPERATOR_L2_ALL | OPERATOR_L2_1 | OPERATOR_L2_2 => {
             match try!(graph.get_node(op.parents[0])).node_type {
                 Type::Float(x) => {
                     let node = graph.add_float(x*x);
@@ -281,7 +284,7 @@ fn single_fold(graph: &mut ComputeGraph, old: usize) -> Result<bool, GraphError>
                 _ => ()
             }
         },
-        OperatorType::Unary(UnaryOperatorType::Log) => {
+        OPERATOR_LOG => {
             match try!(graph.get_node(op.parents[0])).node_type {
                 Type::Float(x) => {
                     let node = graph.add_float(x.ln());
@@ -298,7 +301,7 @@ fn single_fold(graph: &mut ComputeGraph, old: usize) -> Result<bool, GraphError>
                 _ => ()
             }
         },
-        OperatorType::Unary(UnaryOperatorType::Exp) => {
+        OPERATOR_EXP => {
             match try!(graph.get_node(op.parents[0])).node_type {
                 Type::Float(x) => {
                     let node = graph.add_float(x.exp());
@@ -315,7 +318,7 @@ fn single_fold(graph: &mut ComputeGraph, old: usize) -> Result<bool, GraphError>
                 _ => ()
             }
         },
-        OperatorType::Unary(UnaryOperatorType::Sqrt) => {
+        OPERATOR_SQRT => {
             match try!(graph.get_node(op.parents[0])).node_type {
                 Type::Float(x) => {
                     let node = graph.add_float(x.sqrt());
@@ -332,7 +335,7 @@ fn single_fold(graph: &mut ComputeGraph, old: usize) -> Result<bool, GraphError>
                 _ => ()
             }
         },
-        OperatorType::Unary(UnaryOperatorType::Square) => {
+        OPERATOR_SQUARE => {
             match try!(graph.get_node(op.parents[0])).node_type {
                 Type::Float(x) => {
                     let node = graph.add_float(x*x);
@@ -349,7 +352,7 @@ fn single_fold(graph: &mut ComputeGraph, old: usize) -> Result<bool, GraphError>
                 _ => ()
             }
         },
-        OperatorType::Unary(UnaryOperatorType::Sigmoid) => {
+        OPERATOR_SIGM => {
             match try!(graph.get_node(op.parents[0])).node_type {
                 Type::Float(x) => {
                     let node = graph.add_float(1.0 / (1.0 + (-x).exp()));
@@ -366,7 +369,7 @@ fn single_fold(graph: &mut ComputeGraph, old: usize) -> Result<bool, GraphError>
                 _ => ()
             }
         },
-        OperatorType::Constant(ConstantOperatorType::Binary(ConstantBinaryOperatorType::LessThan)) => {
+        OPERATOR_LT => {
             let (_, values) = try!(extract_values(graph, &op.parents));
             match values.len() {
                 0...1 => (),
@@ -380,7 +383,7 @@ fn single_fold(graph: &mut ComputeGraph, old: usize) -> Result<bool, GraphError>
                 _ => unreachable!()
             }
         },
-        OperatorType::Constant(ConstantOperatorType::Binary(ConstantBinaryOperatorType::LessThanOrEqual)) => {
+        OPERATOR_LTE => {
             let (_, values) = try!(extract_values(graph, &op.parents));
             match values.len() {
                 0...1 => (),
@@ -394,7 +397,7 @@ fn single_fold(graph: &mut ComputeGraph, old: usize) -> Result<bool, GraphError>
                 _ => unreachable!()
             }
         },
-        OperatorType::Constant(ConstantOperatorType::Binary(ConstantBinaryOperatorType::GreaterThan)) => {
+        OPERATOR_GT => {
             let (_, values) = try!(extract_values(graph, &op.parents));
             match values.len() {
                 0...1 => (),
@@ -408,7 +411,7 @@ fn single_fold(graph: &mut ComputeGraph, old: usize) -> Result<bool, GraphError>
                 _ => unreachable!()
             }
         },
-        OperatorType::Constant(ConstantOperatorType::Binary(ConstantBinaryOperatorType::GreaterThanOrEqual)) => {
+        OPERATOR_GTE => {
             let (_, values) = try!(extract_values(graph, &op.parents));
             match values.len() {
                 0...1 => (),
@@ -422,7 +425,7 @@ fn single_fold(graph: &mut ComputeGraph, old: usize) -> Result<bool, GraphError>
                 _ => unreachable!()
             }
         },
-        OperatorType::Binary(BinaryOperatorType::Max) => {
+        OPERATOR_MAX => {
             let (_, values) = try!(extract_values(graph, &op.parents));
             match values.len() {
                 0...1 => (),
@@ -440,7 +443,7 @@ fn single_fold(graph: &mut ComputeGraph, old: usize) -> Result<bool, GraphError>
                 _ => unreachable!()
             }
         },
-        OperatorType::Binary(BinaryOperatorType::Min) => {
+        OPERATOR_MIN => {
             let (_, values) = try!(extract_values(graph, &op.parents));
             match values.len() {
                 0...1 => (),
@@ -458,7 +461,7 @@ fn single_fold(graph: &mut ComputeGraph, old: usize) -> Result<bool, GraphError>
                 _ => unreachable!()
             }
         },
-        OperatorType::Binary(BinaryOperatorType::Pow) => {
+        OPERATOR_POW => {
             let (indexes, values) = try!(extract_values(graph, &op.parents));
             match values.len() {
                 0 => (),
@@ -516,7 +519,7 @@ fn single_fold(graph: &mut ComputeGraph, old: usize) -> Result<bool, GraphError>
                 _ => unreachable!()
             }
         },
-        OperatorType::Binary(BinaryOperatorType::Quadratic) => {
+        OPERATOR_QUAD => {
             let po = try!(graph.get_node(op.parents[0])).op.clone();
             // Check first operand for Zeros and Eye
             match po.op_type {
@@ -571,14 +574,15 @@ fn single_fold(graph: &mut ComputeGraph, old: usize) -> Result<bool, GraphError>
                 }
             }
         },
-        OperatorType::Special(SpecialUnaryOperatorType::ReplicateHorz)
-        | OperatorType::Special(SpecialUnaryOperatorType::ReplicateVert) => {
+        OPERATOR_REPLICATEH | OPERATOR_REPLICATEV => {
             match try!(graph.get_node(op.args[0])).node_type {
-                Type::Float(_) => return Err(::std::convert::From::from(
-                    InvalidOperatorError::new(op.op_type, 1, 1, 0, 0))),
                 Type::Integer(x) => match x{
-                    0 => return Err(::std::convert::From::from(
-                        InvalidOperatorError::new(op.op_type, 1, 1, 0, 0))),
+                    0 => {
+                        // TODO
+                        // return Err(OperatorError::Invalid
+                        // ::std::convert::From::from(
+                        // InvalidOperatorError::new(op.op_type, 1, 1, 0, 0))),
+                    },
                     1 => {
                         new_node = Some(op.parents[0]);
                         parents.push(op.parents[0]);
@@ -589,44 +593,6 @@ fn single_fold(graph: &mut ComputeGraph, old: usize) -> Result<bool, GraphError>
                 _ => ()
             }
         },
-        // OpeartorType::Nary(NaryOperatorType::Add)
-        // | OpeartorType::Nary(NaryOperatorType::Mul)
-        // | OpeartorType::Nary(NaryOperatorType::Dot) => {
-        //     let (indexes, values) = try!(extract_values(graph, &node.parents));
-        //     match values.len(){
-        //         0...1 => (),
-        //         _ => {
-        //             let x = match node.op.op_type {
-        //                 OpeartorType::Nary(NaryOperatorType::Add)  =>  values.iter().fold(0.0, |acc, &x| acc + x),
-        //                 _ => values.iter().fold(1.0, |acc, &x| acc * x),
-        //             };
-        //             if p.len() == values.len() {
-        //                 let node = if x == x.floor() {
-        //                     graph.add_int(x as i64)
-        //                 } else {
-        //                     graph.add_float(x)
-        //                 };
-        //                 created_nodes.push(node);
-        //                 new_node = Some(node);
-        //                 parents.extend(p.iter().cloned());
-        //             } else {
-        //                 // Combine all constants
-        //                 let combined = if x == x.floor() {graph.add_int(x as i64)}
-        //                     else {graph.add_float(x)};
-        //                 created_nodes.push(combined);
-        //                 // All parents which were not constants + combined
-        //                 let mut new_parents  = p.iter().enumerate().filter(|&(i,_)| !indexes.contains(&i)).map(|(_,v)| v.clone()).collect::<Vec<_>>();
-        //                 new_parents.push(combined);
-        //                 // println!("Parents:{}, {:?} - {:?}", new_parents.len(), indexes, p);
-        //                 let new_op = try!(op.recreate(new_parents));
-        //                 let node = try!(graph.add_operation(new_op));
-        //                 created_nodes.push(node);
-        //                 new_node = Some(node);
-        //                 parents.extend(p.iter().cloned());
-        //             }
-        //         }
-        //     }
-        // },
         _ => ()
     }
     match new_node{

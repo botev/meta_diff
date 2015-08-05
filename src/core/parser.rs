@@ -9,7 +9,6 @@ macro_rules! result_err {
 		}
 	};
 }
-
 use std::collections::{HashMap, HashSet};
 use super::operator::*;
 use super::node::*;
@@ -1286,9 +1285,7 @@ fn parse_g1<'input>(input: &'input str, state: &mut ParseState, pos: usize)
                                                     let match_str =
                                                         &input[start_pos..pos];
                                                     Matched(pos,
-                                                            {
-                                                                ::std::convert::From::from(ConstantBinaryOperatorType::GreaterThanOrEqual)
-                                                            })
+                                                            { OPERATOR_GTE })
                                                 }
                                             }
                                         }
@@ -1327,7 +1324,7 @@ fn parse_g1<'input>(input: &'input str, state: &mut ParseState, pos: usize)
                                                                 &input[start_pos..pos];
                                                             Matched(pos,
                                                                     {
-                                                                        ::std::convert::From::from(ConstantBinaryOperatorType::GreaterThan)
+                                                                        OPERATOR_GT
                                                                     })
                                                         }
                                                     }
@@ -1369,7 +1366,7 @@ fn parse_g1<'input>(input: &'input str, state: &mut ParseState, pos: usize)
                                                                         &input[start_pos..pos];
                                                                     Matched(pos,
                                                                             {
-                                                                                ::std::convert::From::from(ConstantBinaryOperatorType::LessThanOrEqual)
+                                                                                OPERATOR_LTE
                                                                             })
                                                                 }
                                                             }
@@ -1411,7 +1408,7 @@ fn parse_g1<'input>(input: &'input str, state: &mut ParseState, pos: usize)
                                                                                 &input[start_pos..pos];
                                                                             Matched(pos,
                                                                                     {
-                                                                                        ::std::convert::From::from(ConstantBinaryOperatorType::LessThan)
+                                                                                        OPERATOR_LT
                                                                                     })
                                                                         }
                                                                     }
@@ -1455,7 +1452,7 @@ fn parse_g1<'input>(input: &'input str, state: &mut ParseState, pos: usize)
                                                                                         &input[start_pos..pos];
                                                                                     Matched(pos,
                                                                                             {
-                                                                                                ::std::convert::From::from(ConstantBinaryOperatorType::NotEquals)
+                                                                                                OPERATOR_NEQ
                                                                                             })
                                                                                 }
                                                                             }
@@ -1498,7 +1495,7 @@ fn parse_g1<'input>(input: &'input str, state: &mut ParseState, pos: usize)
                                                                                         &input[start_pos..pos];
                                                                                     Matched(pos,
                                                                                             {
-                                                                                                ::std::convert::From::from(ConstantBinaryOperatorType::Equals)
+                                                                                                OPERATOR_EQ
                                                                                             })
                                                                                 }
                                                                             }
@@ -1991,7 +1988,7 @@ fn parse_e1<'input>(input: &'input str, state: &mut ParseState, pos: usize)
                                                                                                                                                {
                                                                                                                                                 Ok(var)
                                                                                                                                             } else {
-                                                                                                                                                match graph.add_operation(UnaryOperatorType::Neg,
+                                                                                                                                                match graph.add_operation(OPERATOR_NEG,
                                                                                                                                                                           vec!(var))
                                                                                                                                                     {
                                                                                                                                                     Ok(var)
@@ -2105,7 +2102,7 @@ fn parse_e1<'input>(input: &'input str, state: &mut ParseState, pos: usize)
                                                                                     let mut vars =
                                                                                         vec!(first);
                                                                                     vars.extend(rest);
-                                                                                    match graph.add_operation(NaryOperatorType::Add,
+                                                                                    match graph.add_operation(OPERATOR_ADD,
                                                                                                               vars)
                                                                                         {
                                                                                         Ok(var)
@@ -2269,7 +2266,7 @@ fn parse_e2<'input>(input: &'input str, state: &mut ParseState, pos: usize)
                                                                                                                                                {
                                                                                                                                                 Ok(var)
                                                                                                                                             } else {
-                                                                                                                                                match graph.add_operation(UnaryOperatorType::Div,
+                                                                                                                                                match graph.add_operation(OPERATOR_DIV,
                                                                                                                                                                           vec!(var))
                                                                                                                                                     {
                                                                                                                                                     Ok(var)
@@ -2383,7 +2380,7 @@ fn parse_e2<'input>(input: &'input str, state: &mut ParseState, pos: usize)
                                                                                     let mut vars =
                                                                                         vec!(first);
                                                                                     vars.extend(rest);
-                                                                                    match graph.add_operation(NaryOperatorType::Mul,
+                                                                                    match graph.add_operation(OPERATOR_MUL,
                                                                                                               vars)
                                                                                         {
                                                                                         Ok(var)
@@ -2543,7 +2540,7 @@ fn parse_e3<'input>(input: &'input str, state: &mut ParseState, pos: usize)
                                                                     1 =>
                                                                     Ok(vars[0]),
                                                                     _ =>
-                                                                    match graph.add_operation(NaryOperatorType::Dot,
+                                                                    match graph.add_operation(OPERATOR_DOT,
                                                                                               vars)
                                                                         {
                                                                         Ok(var)
@@ -2642,7 +2639,7 @@ fn parse_e4<'input>(input: &'input str, state: &mut ParseState, pos: usize)
                                                                                             {
                                                                                             Some(_)
                                                                                             =>
-                                                                                            match graph.add_operation(UnaryOperatorType::Neg,
+                                                                                            match graph.add_operation(OPERATOR_NEG,
                                                                                                                       vec!(var))
                                                                                                 {
                                                                                                 Ok(var)
@@ -2852,7 +2849,7 @@ fn parse_e5<'input>(input: &'input str, state: &mut ParseState, pos: usize)
                                                                                 {
                                                                                 Some(id)
                                                                                 =>
-                                                                                match graph.add_operation(BinaryOperatorType::Pow,
+                                                                                match graph.add_operation(OPERATOR_POW,
                                                                                                           vec!(first
                                                                                                                ,
                                                                                                                id))
@@ -2956,7 +2953,7 @@ fn parse_e6<'input>(input: &'input str, state: &mut ParseState, pos: usize)
                                                                                 {
                                                                                 Some(_)
                                                                                 =>
-                                                                                match graph.add_operation(UnaryOperatorType::Transpose,
+                                                                                match graph.add_operation(OPERATOR_TRANSPOSE,
                                                                                                           vec!(var))
                                                                                     {
                                                                                     Ok(var)
@@ -3543,7 +3540,7 @@ fn parse_indexedVar<'input>(input: &'input str, state: &mut ParseState,
                                                                                                                                                                                                                                                                                 {
                                                                                                                                                                                                                                                                                 Some(id)
                                                                                                                                                                                                                                                                                 =>
-                                                                                                                                                                                                                                                                                match graph.add_operation(SpecialUnaryOperatorType::SubIndex,
+                                                                                                                                                                                                                                                                                match graph.add_operation(OPERATOR_SUBINDEX,
                                                                                                                                                                                                                                                                                                           vec!(*
                                                                                                                                                                                                                                                                                                                id
                                                                                                                                                                                                                                                                                                                ,
@@ -4617,7 +4614,6 @@ fn parse___<'input>(input: &'input str, state: &mut ParseState, pos: usize)
                            "[ \t\u{a0}\u{feff}\u{1680}\u{180e}\u{2000}-\u{200a}\u{202f}\u{205f}\u{3000}]".to_string())
     }
 }
-
 pub fn metaFile<'input>(input: &'input str)
  -> ParseResult<ComputeGraph> {
     let mut state = ParseState::new();

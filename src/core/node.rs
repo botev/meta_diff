@@ -1,9 +1,8 @@
 use std::fmt::{Display, Formatter, Error};
 use super::operator::*;
 
-
 /// Represents the five types any `ComputeNode`
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Type{
 	/// Represents a single floating variable
 	Float(f64),
@@ -19,21 +18,10 @@ pub enum Type{
 	ParameterDerived
 }
 
-impl Display for Type{
-	fn fmt(&self, f : &mut Formatter) -> Result<(), Error> {
-		match *self{
-			Type::Float(x) => write!(f, "Float({})", x),
-			Type::Integer(x) => write!(f, "Int({})", x),
-			Type::ConstInput => write!(f, "ConstIn"),
-			Type::Parameter => write!(f, "Param"),
-			Type::ConstDerived => write!(f, "ConstDer"),
-			Type::ParameterDerived => write!(f, "ParamDer"),
-		}
-	}
-}
+
 
 /// The main data structure of the `ComputeGraph`
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct ComputeNode{
 	/// The id is equivalent to the index in the nodes list of the `ComputeGraph`
 	pub id: usize,
@@ -70,7 +58,6 @@ impl Display for ComputeNode{
 				"Children:{:?}"),
 				self.name, self.id, self.node_type, operator, self.children),
 		}
-
 	}
 }
 
@@ -81,7 +68,7 @@ impl ComputeNode{
 			"AutoGrad".to_string()
 		}
 		else {
-			format!("{}", node_type)
+			format!("{:?}", node_type)
 		};
 		ComputeNode{id: id, node_type: node_type, name: name, children: Vec::new(),
 			grad_level: grad_level, inline: false, grad_child: None, grad_parents: Vec::new(), op:op}

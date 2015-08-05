@@ -8,7 +8,7 @@ use super::node::*;
 
 
 /// The core of this module - this structure contains the full compute graph
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct ComputeGraph{
 	counter: usize,
 	grad_level: u8,
@@ -106,187 +106,75 @@ impl ComputeGraph{
 	}
 
 	/// Adds a variable coresponding to the input operation to the graph
-	pub fn add_operation<T>(&mut self, op_type: T, args: Vec<usize>)
-		-> Result<usize, GraphError>
-		where T: ::std::convert::Into<OperatorType> {
+	pub fn add_operation(&mut self, op_type: OperatorType, args: Vec<usize>)
+		-> Result<usize, GraphError> {
 		let mut node_type = Type::ConstDerived;
 		let id = self.counter;
-		let converted = ::std::convert::Into::into(op_type);
-		let op = match converted {
+		let mut op_p : Vec<usize> = Vec::new();
+		let mut op_args : Vec<usize> = Vec::new();
+		match op_type {
 			OperatorType::Special(_) =>  {
-				if args.len() == 0 {
-					try!(Operator::new(converted,vec![],vec![]))
-				} else {
-					try!(Operator::new(converted,vec![args[0]],args[1..].to_vec()))
+				// First argument is the parent all others are the arguments
+				if args.len() > 0 {
+					op_p.push(args[0]);
+				}
+				if args.len() > 1 {
+					op_args.extend(&args[1..]);
 				}
 			}
 			OperatorType::Constant(_) => {
-				try!(Operator::new(converted,args,Vec::new()))
+				// All arguments are the parents
+				op_p = args;
 			},
 			_ => {
 				for i in args.iter(){
-					// TODO try! instead of unwrap
-					match self.get_mut_node(*i).unwrap().node_type {
+					// All arguments are the paretns, check if some of them are parameter dependent
+					match try!(self.get_mut_node(*i)).node_type {
 						Type::Parameter | Type::ParameterDerived => node_type = Type::ParameterDerived,
 						_ => ()
 					}
 				}
-				try!(Operator::new(converted,args,Vec::new()))
+				op_p = args;
 			}
 		};
-		for i in op.get_ancestors(){
-			// TODO try! instead of unwrap
-			self.get_mut_node(*i).unwrap().children.push(id);
+		// Create the new node
+		let operator = try!(Operator::new(op_type,op_p,op_args));
+		// Insert the id as a child of all ancestros
+		for i in operator.get_ancestors(){
+			try!(self.get_mut_node(*i)).children.push(id);
 		}
-		// 	 => Operator::new(op, args, vec![]),
-		//
-		// 	Operator::Const(parent_id) |  Operator::Eye(parent_id) | Operator::Size(parent_id, _)
-		// 	| Operator::Sign(parent_id)=> {
-		// 		try!(self.get_mut_node(parent_id)).children.push(new_id);
-		// 	},
-		// 	Operator::Ones(parent_id1, parent_id2) | Operator::Zeros(parent_id1, parent_id2)
-		// 	| Operator::LessThan(parent_id1, parent_id2) | Operator::LessThanOrEqual(parent_id1, parent_id2)
-		// 	| Operator::GreaterThan(parent_id1, parent_id2) | Operator::GreaterThanOrEqual(parent_id1, parent_id2) => {
-		// 		try!(self.get_mut_node(parent_id1)).children.push(new_id);
-		// 		try!(self.get_mut_node(parent_id2)).children.push(new_id);
-		// 	},
-		// 	Operator::Neg(parent_id) | Operator::Div(parent_id) | Operator::MatrixInverse(parent_id)
-		// 	| Operator::Transpose(parent_id) | Operator::MatrixDiag(parent_id) | Operator::VectorDiag(parent_id)
-		// 	| Operator::Cos(parent_id) | Operator::Sin(parent_id) | Operator::Tan(parent_id)
-		// 	| Operator::CosH(parent_id) | Operator::SinH(parent_id) | Operator::TanH(parent_id)
-		// 	| Operator::Abs(parent_id) | Operator::Log(parent_id) | Operator::Exp(parent_id)
-		// 	| Operator::Sqrt(parent_id) | Operator::Square(parent_id)
-		// 	| Operator::Sigmoid(parent_id) | Operator::Sum(parent_id,_)
-		// 	| Operator::L2(parent_id,_) | Operator::L1(parent_id,_) => {
-		// 		//| Operator::Broadcast(parent_id,_) =>
-		// 		try!(self.get_mut_node(parent_id)).children.push(new_id);
-		// 		match try!(self.get_mut_node(parent_id)).node_type {
-		// 			Type::Parameter | Type::ParameterDerived => node_type = Type::ParameterDerived,
-		// 			_ => ()
-		// 		}
-		// 	},
-		// 	Operator::Pow(parent_id1, parent_id2) | Operator::Quadratic(parent_id1, parent_id2)
-		// 	| Operator::Max(parent_id1, parent_id2) | Operator::Min(parent_id1, parent_id2) => {
-		// 		try!(self.get_mut_node(parent_id1)).children.push(new_id);
-		// 		match try!(self.get_mut_node(parent_id1)).node_type {
-		// 			Type::Parameter | Type::ParameterDerived => node_type = Type::ParameterDerived,
-		// 			_ => ()
-		// 		}
-		// 		try!(self.get_mut_node(parent_id2)).children.push(new_id);
-		// 		match try!(self.get_mut_node(parent_id2)).node_type {
-		// 			Type::Parameter | Type::ParameterDerived => node_type = Type::ParameterDerived,
-		// 			_ => ()
-		// 		}
-		// 	},
-		// 	Operator::Add(ref parent_ids) | Operator::Mul(ref parent_ids) | Operator::Dot(ref parent_ids)
-		// 	| Operator::HorzCat(ref parent_ids) | Operator::VertCat(ref parent_ids) => {
-		// 		for parent_id in parent_ids.iter().cloned(){
-		// 			try!(self.get_mut_node(parent_id)).children.push(new_id);
-		// 			match try!(self.get_mut_node(parent_id)).node_type {
-		// 				Type::Parameter | Type::ParameterDerived => node_type = Type::ParameterDerived,
-		// 				_ => ()
-		// 			}
-		// 		}
-		// 	},
-		// 	Operator::SubIndex(parent_id, arg_id1, arg_id2, arg_id3, arg_id4) |
-		// 	Operator::SubAssign(parent_id, arg_id1, arg_id2, arg_id3, arg_id4) => {
-		// 		try!(self.get_mut_node(parent_id)).children.push(new_id);
-		// 		match try!(self.get_mut_node(parent_id)).node_type {
-		// 			Type::Parameter | Type::ParameterDerived => node_type = Type::ParameterDerived,
-		// 			_ => ()
-		// 		}
-		// 		let args = vec![arg_id1, arg_id2, arg_id3, arg_id4];
-		// 		for arg_id in args{
-		// 			try!(self.get_mut_node(arg_id)).children.push(new_id);
-		// 		}
-		// 	},
-		// 	Operator::Reshape(parent_id, arg_id1, arg_id2) => {
-		// 		try!(self.get_mut_node(parent_id)).children.push(new_id);
-		// 		match try!(self.get_mut_node(parent_id)).node_type {
-		// 			Type::Parameter | Type::ParameterDerived => node_type = Type::ParameterDerived,
-		// 			_ => ()
-		// 		}
-		// 		let args = vec![arg_id1, arg_id2];
-		// 		for arg_id in args{
-		// 			try!(self.get_mut_node(arg_id)).children.push(new_id);
-		// 		}
-		// 	},
-		// 	Operator::ReplicateHorz(parent_id, arg_id) | Operator::ReplicateVert(parent_id, arg_id) => {
-		// 		try!(self.get_mut_node(parent_id)).children.push(new_id);
-		// 		match try!(self.get_mut_node(parent_id)).node_type {
-		// 			Type::Parameter | Type::ParameterDerived => node_type = Type::ParameterDerived,
-		// 			_ => ()
-		// 		}
-		// 		try!(self.get_mut_node(arg_id)).children.push(new_id);
-		// 	}
-		// }
-		let node = ComputeNode::new(0, node_type, self.grad_level, op);
+		let node = ComputeNode::new(0, node_type, self.grad_level, operator);
 		Ok(self.insert_new(node))
 	}
 
 	/// Generates an ordering of computation
 	pub fn generate_ordering(&mut self, mut targets: Vec<usize>) -> Result<Vec<usize>,GraphError> {
+		// The spanning tree of the targets, e.g. all nodes required to compute them
 		let mut spanning_tree = vec![false; self.counter];
-		// Generate spanning tree for the target
-		// let mut stack : Vec<usize> = Vec::new();
+		// Use the targets vector as a stack
 		while targets.len() > 0 {
-			// println!("S1");
 			let node = targets.pop().unwrap();
-			// println!("S2");
-			// println!("{}-{}",spanning_tree.len(),node);
+			// If we see this node for the first time add its parents to the stack
 			if !spanning_tree[node] {
 				for p in try!(self.get_node(node)).op.get_ancestors() {
 						targets.push(*p);
 				}
 			}
+			// Add this node to the spanning tree
 			spanning_tree[node] = true;
 		}
 		Ok(self.ordering.iter().cloned().filter(|&x| spanning_tree[x]).collect::<Vec<usize>>())
-
-		// let mut ordering : Vec<usize> = Vec::new();
-		// let mut processed : HashSet<usize> = HashSet::new();
-		// let _ = self.nodes.iter().enumerate().map(|x| if x.1.is_none(){processed.insert(x.0);});
-		// let mut change = true;
-		// //let n = self.nodes.len();
-		// while change {
-		// 	change = false;
-		// 	for (i,node) in self.nodes.iter().enumerate() {
-		// 		if !processed.contains(&i) {
-		// 			match *node {
-		// 				Some(ref n) => {
-		// 					match n.op{
-		// 						Some(ref operator) => {
-		// 							if operator.get_ancestors().iter()
-		// 								.fold(true, |acc, x| acc && processed.contains(x)){
-		// 									ordering.push(i);
-		// 									processed.insert(i);
-		// 									change = true;
-		// 								}
-		// 						},
-		// 						None => {
-		// 							ordering.push(i);
-		// 							processed.insert(i);
-		// 							change = true;
-		// 						}
-		// 					}
-		// 				},
-		// 				None => (),
-		// 			}
-		// 		}
-		// 	}
-		// }
-		// ordering
-		// Ok(vec![1])
 	}
 
-	/// Applies gradient operator with the target held in the graph
-	pub fn direct_gradient(&mut self) -> Result<(),GraphError>{
+	/// Applies gradient operator with the first of the outputs
+	pub fn direct_gradient(&mut self) -> Result<(),GraphError> {
 		let target = self.outputs[0];
 		self.gradient(target)
 	}
 
 	/// Applies a gradient operator to the graph given the target
 	pub fn gradient(&mut self, target: usize) -> Result<(),GraphError>{
+		// Some sensible checks
 		match self.nodes[target]{
 			Some(ref node) => match node.node_type {
 				Type::Parameter | Type::ParameterDerived => (),
@@ -295,35 +183,17 @@ impl ComputeGraph{
 			None => return Err(GraphError::AccessNoneNode(target))
 		}
 		self.grad_level += 1;
+		// Keeps all gradient messages
 		let mut messages : HashMap<usize, Vec<usize>> = HashMap::new();
-		// let mut span : Vec<bool> = self.nodes.iter().cloned().map(|_| false).collect::<Vec<bool>>();
 		let ordering = try!(self.generate_ordering(vec![target]));
-		println!("Ordering: {:?}",ordering);
-		// let mut stack = VecDeque::new();
-		// stack.push_back(target);
-
-		// span.push(true);
-		// span.swap_remove(self.target);
-
 		messages.insert(target, vec![self.add_int(1)]);
 		for i in ordering.iter().rev(){
-		// while stack.len() > 0 {
-		// for i in (0..self.target + 1).rev(){
-			// Skip if the node is not in the spanning tree of the target
-			// if !span[i] {
-				// continue;
-			// }
-
-			// let i = stack.pop_front().unwrap();
-			// println!("Poping {}",i);
-			// println!("Messages: {:?}", messages);
-			// Get the gradient of the current node
+			// Get all gradient messages and process them
 			let gradient = match messages.remove(&i) {
 				Some(vec) => match vec.len() {
 					0 => return Err(GraphError::NoGradientMessages(*i)),
 					1 => vec[0],
-					// TODO change unwrap to try
-					_ => self.add_operation(OperatorType::Nary(NaryOperatorType::Add), vec).unwrap()
+					_ => try!(self.add_operation(OPERATOR_ADD, vec))
 				},
 				None => continue//return Err(format!("No incoming messages found for node {}", i))
 			};
@@ -331,47 +201,28 @@ impl ComputeGraph{
 			try!(self.get_mut_node(gradient)).grad_parents.push(*i);
 			try!(self.get_mut_node(*i)).grad_child = Some(gradient);
 			let gradient = 0;
-			// Generate gradient messages
+			// Generate gradient messages and send them to parents
 			let grad_msgs = try!(self.op_gradient(*i, gradient));
-
 			for (parent, msg) in grad_msgs{
-				// Mark that that the parent is in the sapnning tree
-				// span.push(true);
-				// span.swap_remove(parent);
-				// Add message to his incomings
-				let mut mine = if messages.contains_key(&parent) {
-					messages.get_mut(&parent).unwrap()
-				} else {
-					// println!("no found for parent {} sending form {}", parent, i);
-					// stack.push_back(parent);
-					messages.insert(parent, Vec::new());
-					messages.get_mut(&parent).unwrap()
-				};
+				let mut mine = messages.entry(parent).or_insert(Vec::new());
 				mine.push(msg);
-				// println!("Inserting message from {} to {} with id {},{}", i, parent, msg, mine.len());
-				// messages.insert(parent,mine);
-				// let mut mine = match messages.remove(0).unrwap();
-				// println!("One : {}", mine.len());
-				// messages.insert(parent,mine);
-			}
-			// println!("Messages: {:?}", messages);
-			// println!("Finishing {}", i);
-		}
-		let mut grad_outputs: Vec<usize> = Vec::new();
-		// Add gradients of the parameters to outptus
-		for i in (0..self.counter) {
-			//let node : Result<&mut ComputeNode, String> = ;
-			match self.get_mut_node(i) {
-				Ok(ref node) => match node.node_type {
-					Type::Parameter => {grad_outputs.push(node.grad_child.unwrap()); ()},
-					_ => ()
-				},
-				Err(_) => ()
 			}
 		}
-		for val in grad_outputs {
-			self.outputs.push(val);
-		}
+		// let mut grad_outputs: Vec<usize> = Vec::new();
+		// // Add gradients of the parameters to outptus
+		// for i in (0..self.counter) {
+		// 	//let node : Result<&mut ComputeNode, String> = ;
+		// 	match self.get_mut_node(i) {
+		// 		Ok(ref node) => match node.node_type {
+		// 			Type::Parameter => {grad_outputs.push(node.grad_child.unwrap()); ()},
+		// 			_ => ()
+		// 		},
+		// 		Err(_) => ()
+		// 	}
+		// }
+		// for val in grad_outputs {
+		// 	self.outputs.push(val);
+		// }
 		Ok(())
 	}
 
@@ -385,287 +236,272 @@ impl ComputeGraph{
 		}
 		match op.op_type{
 			OperatorType::Constant(_) => return Err(GraphError::GradientOfConstant(child)),
-			OperatorType::Unary(UnaryOperatorType::Neg) => {
-				let msg = try!(self.add_operation(UnaryOperatorType::Neg,vec![grad]));
+			OPERATOR_NEG => {
+				let msg = try!(self.add_operation(OPERATOR_NEG,vec![grad]));
 				gradients.insert(op.parents[0], msg);
 			},
-			OperatorType::Unary(UnaryOperatorType::Div) => {
-				let mut msg = try!(self.add_operation(UnaryOperatorType::Square,op.parents.clone()));
-				msg = try!(self.add_operation(UnaryOperatorType::Div,vec![msg]));
-				msg = try!(self.add_operation(UnaryOperatorType::Neg,vec![msg]));
-				msg = try!(self.add_operation(NaryOperatorType::Mul,vec![msg,grad]));
+			OPERATOR_DIV => {
+				let mut msg = try!(self.add_operation(OPERATOR_SQUARE,op.parents.clone()));
+				msg = try!(self.add_operation(OPERATOR_DIV,vec![msg]));
+				msg = try!(self.add_operation(OPERATOR_NEG,vec![msg]));
+				msg = try!(self.add_operation(OPERATOR_MUL,vec![msg,grad]));
 				gradients.insert(op.parents[0], msg);
 			},
-			OperatorType::Unary(UnaryOperatorType::MatrixInverse) => {
-				let mut msg = try!(self.add_operation(UnaryOperatorType::Transpose,vec![child]));
-				msg = try!(self.add_operation(NaryOperatorType::Dot,vec![msg,grad,msg]));
-				msg = try!(self.add_operation(UnaryOperatorType::Neg,vec![msg]));
+			OPERATOR_MINV => {
+				let mut msg = try!(self.add_operation(OPERATOR_TRANSPOSE,vec![child]));
+				msg = try!(self.add_operation(OPERATOR_DOT,vec![msg,grad,msg]));
+				msg = try!(self.add_operation(OPERATOR_NEG,vec![msg]));
 				gradients.insert(op.parents[0], msg);
 			},
-			OperatorType::Unary(UnaryOperatorType::Transpose) => {
-				let msg = try!(self.add_operation(UnaryOperatorType::Transpose,vec![grad]));
+			OPERATOR_TRANSPOSE => {
+				let msg = try!(self.add_operation(OPERATOR_TRANSPOSE,vec![grad]));
 				gradients.insert(op.parents[0], msg);
 			},
-			OperatorType::Unary(UnaryOperatorType::MatrixDiag) => {
-				let msg = try!(self.add_operation(UnaryOperatorType::VectorDiag,vec![grad]));
+			OPERATOR_MDIAG => {
+				let msg = try!(self.add_operation(OPERATOR_VDIAG,vec![grad]));
 				gradients.insert(op.parents[0], msg);
 			},
-			OperatorType::Unary(UnaryOperatorType::VectorDiag) => {
-				let msg = try!(self.add_operation(UnaryOperatorType::MatrixDiag,vec![grad]));
+			OPERATOR_VDIAG => {
+				let msg = try!(self.add_operation(OPERATOR_MDIAG,vec![grad]));
 				gradients.insert(op.parents[0], msg);
 			},
-			OperatorType::Unary(UnaryOperatorType::Cos) => {
-				let mut msg = try!(self.add_operation(UnaryOperatorType::Sin,op.parents.clone()));
-				msg = try!(self.add_operation(UnaryOperatorType::Neg,vec![msg]));
-				msg = try!(self.add_operation(NaryOperatorType::Mul,vec![msg,grad]));
+			OPERATOR_COS => {
+				let mut msg = try!(self.add_operation(OPERATOR_SIN,op.parents.clone()));
+				msg = try!(self.add_operation(OPERATOR_NEG,vec![msg]));
+				msg = try!(self.add_operation(OPERATOR_MUL,vec![msg,grad]));
 				gradients.insert(op.parents[0], msg);
 			},
-			OperatorType::Unary(UnaryOperatorType::Sin) => {
-				let mut msg = try!(self.add_operation(UnaryOperatorType::Cos,op.parents.clone()));
-				msg = try!(self.add_operation(NaryOperatorType::Mul,vec![msg,grad]));
+			OPERATOR_SIN => {
+				let mut msg = try!(self.add_operation(OPERATOR_COS,op.parents.clone()));
+				msg = try!(self.add_operation(OPERATOR_MUL,vec![msg,grad]));
 				gradients.insert(op.parents[0], msg);
 			},
-			OperatorType::Unary(UnaryOperatorType::Tan) => {
-				let mut msg = try!(self.add_operation(UnaryOperatorType::Cos,op.parents.clone()));
-				msg = try!(self.add_operation(UnaryOperatorType::Square,vec![msg]));
-				msg = try!(self.add_operation(UnaryOperatorType::Div,vec![msg]));
-				msg = try!(self.add_operation(NaryOperatorType::Mul,vec![msg,grad]));
+			OPERATOR_TAN => {
+				let mut msg = try!(self.add_operation(OPERATOR_COS,op.parents.clone()));
+				msg = try!(self.add_operation(OPERATOR_SQUARE,vec![msg]));
+				msg = try!(self.add_operation(OPERATOR_DIV,vec![msg]));
+				msg = try!(self.add_operation(OPERATOR_MUL,vec![msg,grad]));
 				gradients.insert(op.parents[0], msg);
 			},
-			OperatorType::Unary(UnaryOperatorType::CosH) => {
-				let mut msg = try!(self.add_operation(UnaryOperatorType::SinH,op.parents.clone()));
-				msg = try!(self.add_operation(NaryOperatorType::Mul,vec![msg,grad]));
+			OPERATOR_COSH => {
+				let mut msg = try!(self.add_operation(OPERATOR_SINH,op.parents.clone()));
+				msg = try!(self.add_operation(OPERATOR_MUL,vec![msg,grad]));
 				gradients.insert(op.parents[0], msg);
 			},
-			OperatorType::Unary(UnaryOperatorType::SinH) => {
-				let mut msg = try!(self.add_operation(UnaryOperatorType::CosH,op.parents.clone()));
-				msg = try!(self.add_operation(NaryOperatorType::Mul,vec![msg,grad]));
+			OPERATOR_SINH => {
+				let mut msg = try!(self.add_operation(OPERATOR_COSH,op.parents.clone()));
+				msg = try!(self.add_operation(OPERATOR_MUL,vec![msg,grad]));
 				gradients.insert(op.parents[0], msg);
 			},
-			OperatorType::Unary(UnaryOperatorType::TanH) => {
-				let mut msg = try!(self.add_operation(UnaryOperatorType::Square,vec![child]));
-				msg = try!(self.add_operation(UnaryOperatorType::Neg,vec![msg]));
+			OPERATOR_TANH => {
+				let mut msg = try!(self.add_operation(OPERATOR_SQUARE,vec![child]));
+				msg = try!(self.add_operation(OPERATOR_NEG,vec![msg]));
 				let const_1 = self.add_int(1);
-				msg = try!(self.add_operation(NaryOperatorType::Add,vec![msg,const_1]));
-				msg = try!(self.add_operation(NaryOperatorType::Mul,vec![msg,grad]));
+				msg = try!(self.add_operation(OPERATOR_ADD,vec![msg,const_1]));
+				msg = try!(self.add_operation(OPERATOR_MUL,vec![msg,grad]));
 				gradients.insert(op.parents[0], msg);
 			},
-			OperatorType::Unary(UnaryOperatorType::Abs) => {
-				let mut msg = try!(self.add_operation(ConstantUnaryOperatorType::Sign,op.parents.clone()));
-				msg = try!(self.add_operation(NaryOperatorType::Mul,vec![msg,grad]));
+			OPERATOR_ABS => {
+				let mut msg = try!(self.add_operation(OPERATOR_SIGN,op.parents.clone()));
+				msg = try!(self.add_operation(OPERATOR_MUL,vec![msg,grad]));
 				gradients.insert(op.parents[0], msg);
 			},
-			OperatorType::Unary(UnaryOperatorType::Log) => {
-				let mut msg = try!(self.add_operation(UnaryOperatorType::Div,op.parents.clone()));
-				msg = try!(self.add_operation(NaryOperatorType::Mul,vec![msg,grad]));
+			OPERATOR_LOG => {
+				let mut msg = try!(self.add_operation(OPERATOR_DIV,op.parents.clone()));
+				msg = try!(self.add_operation(OPERATOR_MUL,vec![msg,grad]));
 				gradients.insert(op.parents[0], msg);
 			},
-			OperatorType::Unary(UnaryOperatorType::Exp) => {
-				let msg = try!(self.add_operation(NaryOperatorType::Mul,vec![child,grad]));
+			OPERATOR_EXP => {
+				let msg = try!(self.add_operation(OPERATOR_MUL,vec![child,grad]));
 				gradients.insert(op.parents[0], msg);
 			},
-			OperatorType::Unary(UnaryOperatorType::Sqrt) => {
+			OPERATOR_SQRT => {
 				let const_half = self.add_float(0.5);
-				let mut msg = try!(self.add_operation(UnaryOperatorType::Div,vec![child]));
-				msg = try!(self.add_operation(NaryOperatorType::Mul,vec![const_half,msg,grad]));
+				let mut msg = try!(self.add_operation(OPERATOR_DIV,vec![child]));
+				msg = try!(self.add_operation(OPERATOR_MUL,vec![const_half,msg,grad]));
 				gradients.insert(op.parents[0], msg);
 			},
-			OperatorType::Unary(UnaryOperatorType::Square) => {
+			OPERATOR_SQUARE => {
 				let const_2 = self.add_int(2);
 				let msg = try!(self.add_operation(
-					NaryOperatorType::Mul,vec![const_2,op.parents[0],grad]));
+					OPERATOR_MUL,vec![const_2,op.parents[0],grad]));
 				gradients.insert(op.parents[0], msg);
 			},
-			OperatorType::Unary(UnaryOperatorType::Sigmoid) => {
+			OPERATOR_SIGM => {
 				let const_1 = self.add_int(1);
-				let mut msg = try!(self.add_operation(UnaryOperatorType::Neg,vec![child]));
-				msg = try!(self.add_operation(NaryOperatorType::Add,vec![const_1,msg]));
-				msg = try!(self.add_operation(NaryOperatorType::Mul,vec![msg,child,grad]));
+				let mut msg = try!(self.add_operation(OPERATOR_NEG,vec![child]));
+				msg = try!(self.add_operation(OPERATOR_ADD,vec![const_1,msg]));
+				msg = try!(self.add_operation(OPERATOR_MUL,vec![msg,child,grad]));
 				gradients.insert(op.parents[0], msg);
 			},
-			OperatorType::Unary(UnaryOperatorType::Rectifier) => {
+			OPERATOR_RECT => {
 				let const_0 = self.add_int(0);
 				let mut msg = try!(self.add_operation(
-					ConstantBinaryOperatorType::GreaterThan,vec![op.parents[0],const_0]));
-				msg = try!(self.add_operation(NaryOperatorType::Mul,vec![msg,grad]));
+					OPERATOR_GT,vec![op.parents[0],const_0]));
+				msg = try!(self.add_operation(OPERATOR_MUL,vec![msg,grad]));
 				gradients.insert(op.parents[0], msg);
 			},
-			OperatorType::Unary(UnaryOperatorType::Sum(dim)) => {
-				match dim {
-					Dimension::First => {
-						let rows = try!(self.add_operation(ConstantUnaryOperatorType::Size(dim), vec![op.parents[0]]));
-						let msg = try!(self.add_operation(
-							SpecialUnaryOperatorType::ReplicateVert,vec![grad,rows]));
-						gradients.insert(op.parents[0], msg);
-					},
-					Dimension::Second => {
-						let cols = try!(self.add_operation(ConstantUnaryOperatorType::Size(dim), vec![op.parents[0]]));
-						let msg = try!(self.add_operation(
-							SpecialUnaryOperatorType::ReplicateHorz,vec![grad,cols]));
-						gradients.insert(op.parents[0], msg);
-					},
-					Dimension::All => {
-						let rows = try!(self.add_operation(
-							ConstantUnaryOperatorType::Size(Dimension::First), vec![op.parents[0]]));
-						let cols = try!(self.add_operation(
-							ConstantUnaryOperatorType::Size(Dimension::Second), vec![op.parents[0]]));
-						let mut msg = try!(self.add_operation(
-							SpecialUnaryOperatorType::ReplicateVert,vec![grad,rows]));
-						msg = try!(self.add_operation(
-							SpecialUnaryOperatorType::ReplicateHorz,vec![msg,cols]));
-						gradients.insert(op.parents[0], msg);
-					}
-				}
+			OPERATOR_SUM_1 => {
+				let rows = try!(self.add_operation(OPERATOR_SIZE_1, vec![op.parents[0]]));
+				let msg = try!(self.add_operation(
+					OPERATOR_REPLICATEV,vec![grad,rows]));
+				gradients.insert(op.parents[0], msg);
 			},
-			OperatorType::Unary(UnaryOperatorType::L2(dim)) => {
+			OPERATOR_SUM_2 => {
+				let cols = try!(self.add_operation(OPERATOR_SIZE_2, vec![op.parents[0]]));
+				let msg = try!(self.add_operation(
+					OPERATOR_REPLICATEH,vec![grad,cols]));
+				gradients.insert(op.parents[0], msg);
+			},
+			OPERATOR_SUM_ALL => {
+				let rows = try!(self.add_operation(OPERATOR_SIZE_1, vec![op.parents[0]]));
+				let cols = try!(self.add_operation(OPERATOR_SIZE_2, vec![op.parents[0]]));
+				let mut msg = try!(self.add_operation(
+					OPERATOR_REPLICATEV,vec![grad,rows]));
+				msg = try!(self.add_operation(
+					OPERATOR_REPLICATEH,vec![msg,cols]));
+				gradients.insert(op.parents[0], msg);
+			},
+			OPERATOR_L2_1 => {
 				let const_2 = self.add_int(2);
-				match dim {
-					Dimension::First => {
-						let rows = try!(self.add_operation(ConstantUnaryOperatorType::Size(dim), vec![op.parents[0]]));
-						let mut msg = try!(self.add_operation(
-							SpecialUnaryOperatorType::ReplicateVert,vec![grad,rows]));
-						msg = try!(self.add_operation(
-							NaryOperatorType::Mul,vec![const_2, op.parents[0], msg]));
-						gradients.insert(op.parents[0], msg);
-					},
-					Dimension::Second => {
-						let cols = try!(self.add_operation(ConstantUnaryOperatorType::Size(dim), vec![op.parents[0]]));
-						let mut msg = try!(self.add_operation(
-							SpecialUnaryOperatorType::ReplicateHorz,vec![grad,cols]));
-						msg = try!(self.add_operation(
-							NaryOperatorType::Mul,vec![const_2, op.parents[0], msg]));
-						gradients.insert(op.parents[0], msg);
-					},
-					Dimension::All => {
-						let msg = try!(self.add_operation(
-							NaryOperatorType::Mul,vec![const_2, op.parents[0], grad]));
-						gradients.insert(op.parents[0], msg);
-					}
-				}
+				let rows = try!(self.add_operation(OPERATOR_SIZE_1, vec![op.parents[0]]));
+				let mut msg = try!(self.add_operation(
+					OPERATOR_REPLICATEV,vec![grad,rows]));
+				msg = try!(self.add_operation(
+					OPERATOR_MUL,vec![const_2, op.parents[0], msg]));
+				gradients.insert(op.parents[0], msg);
 			},
-			OperatorType::Unary(UnaryOperatorType::L1(dim)) => {
-				match dim {
-					Dimension::First => {
-						let rows = try!(self.add_operation(ConstantUnaryOperatorType::Size(dim), vec![op.parents[0]]));
-						let mut msg = try!(self.add_operation(
-							SpecialUnaryOperatorType::ReplicateVert,vec![grad,rows]));
-						let msg_sign = try!(self.add_operation(ConstantUnaryOperatorType::Sign, vec![op.parents[0]]));
-						msg = try!(self.add_operation(
-							NaryOperatorType::Mul,vec![msg_sign, msg]));
-						gradients.insert(op.parents[0], msg);
-					},
-					Dimension::Second => {
-						let cols = try!(self.add_operation(ConstantUnaryOperatorType::Size(dim), vec![op.parents[0]]));
-						let mut msg = try!(self.add_operation(
-							SpecialUnaryOperatorType::ReplicateHorz,vec![grad,cols]));
-						let msg_sign = try!(self.add_operation(ConstantUnaryOperatorType::Sign, vec![op.parents[0]]));
-						msg = try!(self.add_operation(
-							NaryOperatorType::Mul,vec![msg_sign, msg]));
-						gradients.insert(op.parents[0], msg);
-					},
-					Dimension::All => {
-						let msg = try!(self.add_operation(ConstantUnaryOperatorType::Sign, vec![op.parents[0]]));
-						let msg = try!(self.add_operation(
-							NaryOperatorType::Mul,vec![msg, grad]));
-						gradients.insert(op.parents[0], msg);
-					}
-				}
+			OPERATOR_L2_2 => {
+				let const_2 = self.add_int(2);
+				let cols = try!(self.add_operation(OPERATOR_SIZE_2, vec![op.parents[0]]));
+				let mut msg = try!(self.add_operation(
+					OPERATOR_REPLICATEH,vec![grad,cols]));
+				msg = try!(self.add_operation(
+					OPERATOR_MUL,vec![const_2, op.parents[0], msg]));
+				gradients.insert(op.parents[0], msg);
 			},
-			OperatorType::Binary(BinaryOperatorType::Max) => {
+			OPERATOR_L2_ALL => {
+				let const_2 = self.add_int(2);
+				let msg = try!(self.add_operation(
+					OPERATOR_MUL,vec![const_2, op.parents[0], grad]));
+				gradients.insert(op.parents[0], msg);
+			},
+			OPERATOR_L1_1 => {
+				let rows = try!(self.add_operation(OPERATOR_SIZE_1, vec![op.parents[0]]));
+				let mut msg = try!(self.add_operation(
+					OPERATOR_REPLICATEV,vec![grad,rows]));
+				let msg_sign = try!(self.add_operation(OPERATOR_SIGN, vec![op.parents[0]]));
+				msg = try!(self.add_operation(
+					OPERATOR_MUL,vec![msg_sign, msg]));
+				gradients.insert(op.parents[0], msg);
+			},
+			OPERATOR_L1_2 => {
+				let cols = try!(self.add_operation(OPERATOR_SIZE_2, vec![op.parents[0]]));
+				let mut msg = try!(self.add_operation(
+					OPERATOR_REPLICATEH,vec![grad,cols]));
+				let msg_sign = try!(self.add_operation(OPERATOR_SIGN, vec![op.parents[0]]));
+				msg = try!(self.add_operation(
+					OPERATOR_MUL,vec![msg_sign, msg]));
+				gradients.insert(op.parents[0], msg);
+			},
+			OPERATOR_L1_ALL => {
+				let msg = try!(self.add_operation(OPERATOR_SIGN, vec![op.parents[0]]));
+				let msg = try!(self.add_operation(
+					OPERATOR_MUL,vec![msg, grad]));
+				gradients.insert(op.parents[0], msg);
+			},
+			OPERATOR_MAX => {
 				if try!(self.is_dependable(op.parents[0])){
 					let mut msg = try!(self.add_operation(
-						UnaryOperatorType::Neg,vec![op.parents[1]]));
-					msg = try!(self.add_operation(NaryOperatorType::Add,vec![op.parents[0],msg]));
-					msg = try!(self.add_operation(ConstantUnaryOperatorType::Sign, vec![msg]));
-					msg = try!(self.add_operation(NaryOperatorType::Mul,vec![msg, grad]));
+						OPERATOR_NEG,vec![op.parents[1]]));
+					msg = try!(self.add_operation(OPERATOR_ADD,vec![op.parents[0],msg]));
+					msg = try!(self.add_operation(OPERATOR_SIGN, vec![msg]));
+					msg = try!(self.add_operation(OPERATOR_MUL,vec![msg, grad]));
 					gradients.insert(op.parents[0], msg);
 				}
 				if try!(self.is_dependable(op.parents[1])){
 					let mut msg = try!(self.add_operation(
-						UnaryOperatorType::Neg,vec![op.parents[0]]));
-					msg = try!(self.add_operation(NaryOperatorType::Add,vec![op.parents[1],msg]));
-					msg = try!(self.add_operation(ConstantUnaryOperatorType::Sign, vec![msg]));
-					msg = try!(self.add_operation(NaryOperatorType::Mul,vec![msg, grad]));
+						OPERATOR_NEG,vec![op.parents[0]]));
+					msg = try!(self.add_operation(OPERATOR_ADD,vec![op.parents[1],msg]));
+					msg = try!(self.add_operation(OPERATOR_SIGN, vec![msg]));
+					msg = try!(self.add_operation(OPERATOR_MUL,vec![msg, grad]));
 					gradients.insert(op.parents[1], msg);
 				}
 			},
-			OperatorType::Binary(BinaryOperatorType::Min) => {
+			OPERATOR_MIN => {
 				if try!(self.is_dependable(op.parents[0])){
 					let mut msg = try!(self.add_operation(
-						UnaryOperatorType::Neg,vec![op.parents[0]]));
-					msg = try!(self.add_operation(NaryOperatorType::Add,vec![op.parents[1],msg]));
-					msg = try!(self.add_operation(ConstantUnaryOperatorType::Sign, vec![msg]));
-					msg = try!(self.add_operation(NaryOperatorType::Mul,vec![msg, grad]));
+						OPERATOR_NEG,vec![op.parents[0]]));
+					msg = try!(self.add_operation(OPERATOR_ADD,vec![op.parents[1],msg]));
+					msg = try!(self.add_operation(OPERATOR_SIGN, vec![msg]));
+					msg = try!(self.add_operation(OPERATOR_MUL,vec![msg, grad]));
 					gradients.insert(op.parents[0], msg);
 				}
 				if try!(self.is_dependable(op.parents[1])){
 					let mut msg = try!(self.add_operation(
-						UnaryOperatorType::Neg,vec![op.parents[1]]));
-					msg = try!(self.add_operation(NaryOperatorType::Add,vec![op.parents[0],msg]));
-					msg = try!(self.add_operation(ConstantUnaryOperatorType::Sign, vec![msg]));
-					msg = try!(self.add_operation(NaryOperatorType::Mul,vec![msg, grad]));
+						OPERATOR_NEG,vec![op.parents[1]]));
+					msg = try!(self.add_operation(OPERATOR_ADD,vec![op.parents[0],msg]));
+					msg = try!(self.add_operation(OPERATOR_SIGN, vec![msg]));
+					msg = try!(self.add_operation(OPERATOR_MUL,vec![msg, grad]));
 					gradients.insert(op.parents[1], msg);
 				}
 			},
-			OperatorType::Binary(BinaryOperatorType::Pow) => {
+			OPERATOR_POW => {
 				if try!(self.is_dependable(op.parents[0])){
 					let mut msg = try!(self.add_operation(
-						UnaryOperatorType::Div,vec![op.parents[0]]));
+						OPERATOR_DIV,vec![op.parents[0]]));
 					msg = try!(self.add_operation(
-						NaryOperatorType::Mul,vec![op.parents[1], child, msg, grad]));
+						OPERATOR_MUL,vec![op.parents[1], child, msg, grad]));
 					gradients.insert(op.parents[0], msg);
 				}
 				if try!(self.is_dependable(op.parents[1])){
 					let mut msg = try!(self.add_operation(
-						UnaryOperatorType::Log,vec![op.parents[0]]));
-					msg = try!(self.add_operation(NaryOperatorType::Mul,vec![child, msg, grad]));
+						OPERATOR_LOG,vec![op.parents[0]]));
+					msg = try!(self.add_operation(OPERATOR_MUL,vec![child, msg, grad]));
 					gradients.insert(op.parents[1], msg);
 				}
 			},
-			OperatorType::Binary(BinaryOperatorType::Quadratic) => {
+			OPERATOR_QUAD => {
 				if try!(self.is_dependable(op.parents[0])){
 					let ptr = try!(self.add_operation(
-						UnaryOperatorType::Transpose,vec![op.parents[1]]));
+						OPERATOR_TRANSPOSE,vec![op.parents[1]]));
 					let msg_1 = try!(self.add_operation(
-						NaryOperatorType::Dot,vec![ptr, op.parents[0], grad]));
+						OPERATOR_DOT,vec![ptr, op.parents[0], grad]));
 					let gradtr = try!(self.add_operation(
-						UnaryOperatorType::Transpose,vec![grad]));
+						OPERATOR_TRANSPOSE,vec![grad]));
 					let msg_2 = try!(self.add_operation(
-						NaryOperatorType::Dot,vec![op.parents[1], op.parents[0], gradtr]));
+						OPERATOR_DOT,vec![op.parents[1], op.parents[0], gradtr]));
 					let msg = try!(self.add_operation(
-						NaryOperatorType::Add,vec![msg_1, msg_2]));
+						OPERATOR_ADD,vec![msg_1, msg_2]));
 					gradients.insert(op.parents[0], msg);
 				}
 				if try!(self.is_dependable(op.parents[1])){
 					let ptr = try!(self.add_operation(
-						UnaryOperatorType::Transpose,vec![op.parents[0]]));
+						OPERATOR_TRANSPOSE,vec![op.parents[0]]));
 						let msg = try!(self.add_operation(
-							NaryOperatorType::Dot,vec![op.parents[0], grad, ptr]));
+							OPERATOR_DOT,vec![op.parents[0], grad, ptr]));
 						gradients.insert(op.parents[1], msg);
 				}
 			},
-			OperatorType::Nary(NaryOperatorType::Add) => {
+			OPERATOR_ADD => {
 				for i in op.parents.iter(){
 					if try!(self.is_dependable(*i)){
 						gradients.insert(*i, grad);
 					}
 				}
 			},
-			OperatorType::Nary(NaryOperatorType::Mul) => {
+			OPERATOR_MUL => {
 				match op.parents.len(){
-					0...1 => return Err(::std::convert::From::from(
-						InvalidOperatorError::new(OperatorType::Nary(NaryOperatorType::Mul), 2, 0, op.parents.len(),0))),
+					0...1 => return Err(GraphError::Operator(OperatorError::InvalidNumberOfParents(OPERATOR_MUL, 2, op.parents.len()))),
 					2 => {
 						let p1 = op.parents[0];
 						let p2 = op.parents[1];
 						if try!(self.is_dependable(p1)){
-							let msg = try!(self.add_operation(
-								NaryOperatorType::Mul,vec![p2, grad]));
+							let msg = try!(self.add_operation(OPERATOR_MUL,vec![p2, grad]));
 							gradients.insert(p1, msg);
 						}
 						if try!(self.is_dependable(p2)){
-							let msg = try!(self.add_operation(
-								NaryOperatorType::Mul,vec![p1, grad]));
+							let msg = try!(self.add_operation(OPERATOR_MUL,vec![p1, grad]));
 							gradients.insert(p2, msg);
 						}
 					},
@@ -673,206 +509,190 @@ impl ComputeGraph{
 						for i in op.parents.iter(){
 							if try!(self.is_dependable(*i)){
 								let mut msg = try!(self.add_operation(
-									UnaryOperatorType::Div,vec![*i]));
+									OPERATOR_DIV,vec![*i]));
 								msg = try!(self.add_operation(
-										NaryOperatorType::Mul,vec![msg, child, grad]));
+										OPERATOR_MUL,vec![msg, child, grad]));
 								gradients.insert(*i, msg);
 							}
 						}
 					}
 				}
 			},
-			OperatorType::Nary(NaryOperatorType::Dot) => {
-				// TODO
+			OPERATOR_DOT => {
+				let n = op.parents.len();
+				match n {
+					0...1 => return Err(GraphError::Operator(
+						OperatorError::InvalidNumberOfParents(op.op_type,op.parents.len(),2))),
+					_ => {
+						// Left most parent
+						let p1 = op.parents[0];
+						if try!(self.is_dependable(p1)) {
+							let right_msg =	if n == 2 {
+								try!(self.add_operation(OPERATOR_TRANSPOSE, vec![op.parents[1]]))
+							} else {
+								let right_parents = op.parents[1..].to_owned();
+								let msg = try!(self.add_operation(OPERATOR_DOT, right_parents));
+								try!(self.add_operation(OPERATOR_TRANSPOSE, vec![msg]))
+							};
+							let msg = try!(self.add_operation(OPERATOR_DOT,vec![grad, right_msg]));
+							gradients.insert(p1, msg);
+						}
+						// Right most parent
+						let pend = op.parents[n-1];
+						if try!(self.is_dependable(pend)) {
+							let left_msg = if n == 2 {
+								try!(self.add_operation(OPERATOR_TRANSPOSE, vec![op.parents[0]]))
+							} else {
+								let left_parents = op.parents[..n-1].to_owned();
+								let msg = try!(self.add_operation(OPERATOR_DOT, left_parents));
+								try!(self.add_operation(OPERATOR_TRANSPOSE, vec![msg]))
+							};
+							let msg = try!(self.add_operation(OPERATOR_DOT, vec![left_msg, grad]));
+							gradients.insert(pend, msg);
+						}
+						if n > 2 {
+							// Second from left to right
+							let p = op.parents[1];
+							if try!(self.is_dependable(p)) {
+								let left_msg = try!(self.add_operation(OPERATOR_TRANSPOSE, vec![op.parents[0]]));
+								let right_msg = if n == 3 {
+									try!(self.add_operation(OPERATOR_TRANSPOSE, vec![op.parents[2]]))
+								} else {
+									let right_parents = op.parents[2..].to_owned();
+									let msg = try!(self.add_operation(OPERATOR_DOT, right_parents));
+									try!(self.add_operation(OPERATOR_TRANSPOSE, vec![msg]))
+								};
+								let msg = try!(self.add_operation(OPERATOR_DOT, vec![left_msg, grad, right_msg]));
+								gradients.insert(p, msg);
+							}
+						}
+						if n > 3 {
+							// Second from right to left
+							let p = op.parents[n-2];
+							if try!(self.is_dependable(p)) {
+								let right_msg = try!(self.add_operation(OPERATOR_TRANSPOSE, vec![op.parents[n-1]]));
+								let left_parents = op.parents[..n-3].to_owned();
+								let mut left_msg = try!(self.add_operation(OPERATOR_DOT, left_parents));
+								left_msg = try!(self.add_operation(OPERATOR_TRANSPOSE, vec![left_msg]));
+								let msg = try!(self.add_operation(OPERATOR_DOT,vec![left_msg, grad, right_msg]));
+								gradients.insert(p, msg);
+							}
+						}
+						if n > 4 {
+							// Rest
+							for i in 2..n-3{
+								let p = op.parents[i];
+								if try!(self.is_dependable(p)) {
+									let left_parents = op.parents[..i-1].to_owned();
+									let mut left_msg = try!(self.add_operation(OPERATOR_DOT, left_parents));
+									left_msg = try!(self.add_operation(OPERATOR_TRANSPOSE, vec![left_msg]));
+									let right_parents = op.parents[i+1..].to_owned();
+									let mut right_msg = try!(self.add_operation(OPERATOR_DOT, right_parents));
+									right_msg = try!(self.add_operation(OPERATOR_TRANSPOSE, vec![right_msg]));
+									let msg = try!(self.add_operation(OPERATOR_DOT, vec![left_msg, grad, right_msg]));
+									gradients.insert(p, msg);
+								}
+							}
+						}
+					}
+				}
 			},
-			// Operator::Dot(ref parents) => {
-			// 	match parents.len(){
-			// 		0...1 => return Err("Multiplication with less than 2 parents".to_string()),
-			// 		_ => {
-			// 			// Left most parent
-			// 			let p1 = parents[0];
-			// 			if try!(self.is_dependable(p1)) {
-			// 				let mut right_msg : usize;
-			// 				if parents.len() == 2{
-			// 					right_msg = try!(self.add_operation(Operator::Transpose(parents[1])));
-			// 				}
-			// 				else {
-			// 					let right_parents = parents[1..].to_owned();
-			// 					right_msg = try!(self.add_operation(Operator::Dot(right_parents)));
-			// 					right_msg = try!(self.add_operation(Operator::Transpose(right_msg)));
-			// 				}
-			// 				let msg = try!(self.add_operation(Operator::Dot(vec![grad, right_msg])));
-			// 				gradients.insert(p1, msg);
-			// 			}
-			// 			// Right most parent
-			// 			let last = parents.len()-1;
-			// 			let pend = parents[last];
-			// 			if try!(self.is_dependable(pend)) {
-			// 				let mut left_msg : usize;
-			// 				if parents.len() == 2{
-			// 					left_msg = try!(self.add_operation(Operator::Transpose(parents[0])));
-			// 				}
-			// 				else {
-			// 					let left_parents = parents[..last].to_owned();
-			// 					left_msg = try!(self.add_operation(Operator::Dot(left_parents)));
-			// 					left_msg = try!(self.add_operation(Operator::Transpose(left_msg)));
-			// 				}
-			// 				let msg = try!(self.add_operation(Operator::Dot(vec![left_msg, grad])));
-			// 				gradients.insert(pend, msg);
-			// 			}
-			// 			if parents.len() > 2 {
-			// 				// Second from left to right
-			// 				let p = parents[1];
-			// 				if try!(self.is_dependable(p)) {
-			// 					let left_msg = try!(self.add_operation(Operator::Transpose(parents[0])));
-			// 					let mut right_msg : usize;
-			// 					if parents.len() == 3 {
-			// 						right_msg = try!(self.add_operation(Operator::Transpose(parents[2])));
-			// 					}
-			// 					else {
-			// 						let right_parents = parents[2..].to_owned();
-			// 						right_msg = try!(self.add_operation(Operator::Dot(right_parents)));
-			// 						right_msg = try!(self.add_operation(Operator::Transpose(right_msg)));
-			// 					}
-			// 					let msg = try!(self.add_operation(Operator::Dot(vec![left_msg, grad, right_msg])));
-			// 					gradients.insert(p, msg);
-			// 				}
-			// 			}
-			// 			if parents.len() > 3 {
-			// 				// Second from right to left
-			// 				let p = parents[last-1];
-			// 				if try!(self.is_dependable(p)) {
-			// 					let right_msg = try!(self.add_operation(Operator::Transpose(parents[last])));
-			// 					let left_parents = parents[..last-1].to_owned();
-			// 					let mut left_msg = try!(self.add_operation(Operator::Dot(left_parents)));
-			// 					left_msg = try!(self.add_operation(Operator::Transpose(left_msg)));
-			// 					let msg = try!(self.add_operation(Operator::Dot(vec![left_msg, grad, right_msg	])));
-			// 					gradients.insert(p, msg);
-			// 				}
-			// 				// Rest
-			// 				for i in 2..last-1{
-			// 					let p = parents[i];
-			// 					if try!(self.is_dependable(p)) {
-			// 						let left_parents = parents[..last-1].to_owned();
-			// 						let mut left_msg = try!(self.add_operation(Operator::Dot(left_parents)));
-			// 						left_msg = try!(self.add_operation(Operator::Transpose(left_msg)));
-			// 						let right_parents = parents[2..].to_owned();
-			// 						let mut right_msg = try!(self.add_operation(Operator::Dot(right_parents)));
-			// 						right_msg = try!(self.add_operation(Operator::Transpose(right_msg)));
-			// 						let msg = try!(self.add_operation(Operator::Dot(vec![left_msg, grad, right_msg])));
-			// 						gradients.insert(p, msg);
-			// 					}
-			// 				}
-			// 			}
-			// 		}
-			// 	}
-			// },
-			OperatorType::Nary(NaryOperatorType::HorzCat) => {
-				// TODO
+			OPERATOR_HORZCAT => {
+				let n = op.parents.len();
+				match n {
+					0...1 => return  Err(GraphError::Operator(
+						OperatorError::InvalidNumberOfParents(op.op_type,op.parents.len(),2))),
+					_ => {
+						let mut last : usize = n;
+						for (i,p) in op.parents.iter().enumerate().rev(){
+							if try!(self.is_dependable(*p)) {
+								last = i;
+								break;
+							}
+						}
+						if last < n {
+							let const_0 = self.add_int(0);
+							let rows =  try!(self.add_operation(OPERATOR_SIZE_1, 					vec![child]));
+							let mut accum = self.add_int(0);
+							for p in op.parents.iter().take(last+1) {
+								let cols = try!(self.add_operation(OPERATOR_SIZE_2, vec![*p]));
+								if try!(self.is_dependable(*p)) {
+									let msg = try!(self.add_operation(OPERATOR_SUBINDEX, vec![grad,const_0,rows, accum, cols]));
+									gradients.insert(*p, msg);
+								}
+								accum = try!(self.add_operation(OPERATOR_ADD, vec![accum, cols]));
+							}
+						}
+					}
+				}
 			},
-			// Operator::HorzCat(ref parents) => {
-			// 	match parents.len(){
-			// 		0...1 => return Err("Multiplication with less than 2 parents".to_string()),
-			// 		_ => {
-			// 			let mut last : usize = parents.len() + 1;
-			// 			for i in (0..parents.len()).rev(){
-			// 				if try!(self.is_dependable(parents[i])) {
-			// 					last = i;
-			// 					break;
-			// 				}
-			// 			}
-			// 			if last < parents.len(){
-			// 				let const_0 = self.add_int(0);
-			// 				let size_x =  try!(self.add_operation(Operator::Size(child, Dimension::First)));
-			// 				let mut accum = self.add_int(0);
-			// 				for i in 0..last+1{
-			// 					let p = parents[i];
-			// 					let size_y = try!(self.add_operation(Operator::Size(p, Dimension::Second)));
-			// 					if try!(self.is_dependable(p)) {
-			// 						let start_y = accum;
-			// 						let msg = try!(self.add_operation(Operator::SubIndex(grad, const_0, size_x, start_y, size_y)));
-			// 						gradients.insert(p, msg);
-			// 					}
-			// 					if i < last{
-			// 						accum = try!(self.add_operation(Operator::Add(vec![accum, size_y])));
-			// 					}
-			// 				}
-			// 			}
-			// 		}
-			// 	}
-			// },
-			OperatorType::Nary(NaryOperatorType::VertCat) => {
-				// TODO
+			OPERATOR_VERTCAT => {
+				let n = op.parents.len();
+				match n{
+					0...1 => return  Err(GraphError::Operator(
+						OperatorError::InvalidNumberOfParents(op.op_type,op.parents.len(),2))),
+					_ => {
+						let mut last : usize = n;
+						for (i,p) in op.parents.iter().enumerate().rev(){
+							if try!(self.is_dependable(*p)) {
+								last = i;
+								break;
+							}
+						}
+						if last < n {
+							let const_0 = self.add_int(0);
+							let cols =  try!(self.add_operation(OPERATOR_SIZE_2, 					vec![child]));
+							let mut accum = self.add_int(0);
+							for p in op.parents.iter().take(last+1) {
+								let rows = try!(self.add_operation(OPERATOR_SIZE_1, vec![*p]));
+								if try!(self.is_dependable(*p)) {
+									let msg = try!(self.add_operation(OPERATOR_SUBINDEX, vec![grad,accum,rows, const_0, cols]));
+									gradients.insert(*p, msg);
+								}
+								accum = try!(self.add_operation(OPERATOR_ADD, vec![accum, rows]));
+							}
+						}
+					}
+				}
 			},
-			// Operator::VertCat(ref parents) => {
-			// 	match parents.len(){
-			// 		0...1 => return Err("Multiplication with less than 2 parents".to_string()),
-			// 		_ => {
-			// 			let mut last : usize = parents.len() + 1;
-			// 			for i in (0..parents.len()).rev(){
-			// 				if try!(self.is_dependable(parents[i])) {
-			// 					last = i;
-			// 					break;
-			// 				}
-			// 			}
-			// 			if last < parents.len(){
-			// 				let const_0 = self.add_int(0);
-			// 				let size_y =  try!(self.add_operation(Operator::Size(child, Dimension::Second)));
-			// 				let mut accum = self.add_int(0);
-			// 				for i in 0..last+1{
-			// 					let p = parents[i];
-			// 					let size_x = try!(self.add_operation(Operator::Size(p, Dimension::First)));
-			// 					if try!(self.is_dependable(p)) {
-			// 						let start_x = accum;
-			// 						let msg = try!(self.add_operation(Operator::SubIndex(grad, start_x, size_x, const_0, size_y)));
-			// 						gradients.insert(p, msg);
-			// 					}
-			// 					if i < last{
-			// 						accum = try!(self.add_operation(Operator::Add(vec![accum, size_x])));
-			// 					}
-			// 				}
-			// 			}
-			// 		}
-			// 	}
-			// },
-			OperatorType::Special(SpecialUnaryOperatorType::SubIndex) => {
+			OPERATOR_SUBINDEX => {
 				let mut new_parents = vec![grad];
 				new_parents.extend(op.parents.iter().skip(1).cloned());
 				let msg = try!(self.add_operation(
-					SpecialUnaryOperatorType::SubAssign,new_parents));
+					OPERATOR_SUBASSIGN,new_parents));
 				gradients.insert(op.parents[0], msg);
 			},
-			OperatorType::Special(SpecialUnaryOperatorType::SubAssign) => {
+			OPERATOR_SUBASSIGN => {
 				let mut new_parents = vec![grad];
 				new_parents.extend(op.parents.iter().skip(1).cloned());
 				let msg = try!(self.add_operation(
-					SpecialUnaryOperatorType::SubIndex,new_parents));
+					OPERATOR_SUBINDEX,new_parents));
 				gradients.insert(op.parents[0], msg);
 			},
-			OperatorType::Special(SpecialUnaryOperatorType::Reshape) => {
+			OPERATOR_RESHAPE => {
 				let rows = try!(self.add_operation(
-					ConstantUnaryOperatorType::Size(Dimension::First), vec![op.parents[0]]));
+					OPERATOR_SIZE_1, vec![op.parents[0]]));
 				let cols = try!(self.add_operation(
-					ConstantUnaryOperatorType::Size(Dimension::Second), vec![op.parents[0]]));
+					OPERATOR_SIZE_2, vec![op.parents[0]]));
 				let msg = try!(self.add_operation(
-					SpecialUnaryOperatorType::Reshape,vec![grad, rows, cols]));
+					OPERATOR_RESHAPE,vec![grad, rows, cols]));
 				gradients.insert(op.parents[0], msg);
 			},
-			OperatorType::Special(SpecialUnaryOperatorType::ReplicateHorz) => {
+			OPERATOR_REPLICATEH => {
 				let msg = try!(self.add_operation(
-					UnaryOperatorType::Sum(Dimension::Second),vec![grad]));
+					OPERATOR_SUM_2,vec![grad]));
 				gradients.insert(op.parents[0], msg);
 			},
-			OperatorType::Special(SpecialUnaryOperatorType::ReplicateVert) => {
+			OPERATOR_REPLICATEV => {
 				let msg = try!(self.add_operation(
-					UnaryOperatorType::Sum(Dimension::First),vec![grad]));
+					OPERATOR_SUM_1,vec![grad]));
 				gradients.insert(op.parents[0], msg);
 			}
 		}
 		Ok(gradients)
 	}
 
-	#[inline(always)]
+	// #[inline(always)]
 	pub fn get_mut_node(&mut self, index: usize) -> Result<&mut ComputeNode, GraphError>{
 		let l = self.nodes.len();
 		try!(self.nodes.get_mut(index).ok_or_else(
@@ -881,7 +701,7 @@ impl ComputeGraph{
 				|| GraphError::AccessNoneNode(index))
 	}
 
-	#[inline(always)]
+	// #[inline(always)]
 	pub fn get_node(&mut self, index: usize) -> Result<& ComputeNode, GraphError>{
 		try!(self.nodes.get(index).ok_or_else(
 			|| GraphError::IndexOutOfBounds(index,self.nodes.len())))
@@ -889,19 +709,19 @@ impl ComputeGraph{
 				|| GraphError::AccessNoneNode(index))
 	}
 
-	#[inline(always)]
+	// #[inline(always)]
 	pub fn pop_node(&mut self, index: usize) -> Result<ComputeNode, GraphError> {
 		self.nodes.push(None);
 		self.nodes.swap_remove(index).ok_or_else(|| GraphError::AccessNoneNode(index))
 	}
 
-	#[inline(always)]
+	// #[inline(always)]
 	pub fn insert_node(&mut self, index: usize, node: Option<ComputeNode>) -> Option<ComputeNode> {
 		self.nodes.push(node);
 		self.nodes.swap_remove(index)
 	}
 
-	#[inline(always)]
+	// #[inline(always)]
 	pub fn is_dependable(&mut self, index: usize) -> Result<bool, GraphError> {
 		match try!(self.get_node(index)).node_type.clone(){
 			Type::Parameter | Type::ParameterDerived => Ok(true),
@@ -925,72 +745,68 @@ impl ComputeGraph{
 
 	pub fn string_to_operator(&mut self , name: String, args: Vec<usize>) -> Result<usize,GraphError>{
 		match &name[..]{
-			"const" => Ok(try!(self.add_operation(ConstantUnaryOperatorType::Const, args))),
-			"eye" => Ok(try!(self.add_operation(ConstantUnaryOperatorType::Eye, args))),
-			"sign" => Ok(try!(self.add_operation(ConstantUnaryOperatorType::Sign, args))),
-			"rows" => Ok(try!(self.add_operation(ConstantUnaryOperatorType::Size(Dimension::First), args))),
-			"cols" => Ok(try!(self.add_operation(ConstantUnaryOperatorType::Size(Dimension::Second), args))),
-			"ones" => Ok(try!(self.add_operation(ConstantBinaryOperatorType::Ones, args))),
-			"zeros"  => Ok(try!(self.add_operation(ConstantBinaryOperatorType::Zeros, args))),
-			"lt" => Ok(try!(self.add_operation(ConstantBinaryOperatorType::LessThan, args))),
-			"lte" => Ok(try!(self.add_operation(ConstantBinaryOperatorType::LessThanOrEqual, args))),
-			"gt" => Ok(try!(self.add_operation(ConstantBinaryOperatorType::GreaterThan, args))),
-			"gte" => Ok(try!(self.add_operation(ConstantBinaryOperatorType::GreaterThanOrEqual, args))),
-			"eq" => Ok(try!(self.add_operation(ConstantBinaryOperatorType::Equals, args))),
-			"neq" => Ok(try!(self.add_operation(ConstantBinaryOperatorType::NotEquals, args))),
-			"neg" => Ok(try!(self.add_operation(UnaryOperatorType::Neg, args))),
-			"div" => Ok(try!(self.add_operation(UnaryOperatorType::Div, args))),
-			"minv" => Ok(try!(self.add_operation(UnaryOperatorType::MatrixInverse, args))),
-			"tr" => Ok(try!(self.add_operation(UnaryOperatorType::Transpose, args))),
-			"mdiag" => Ok(try!(self.add_operation(UnaryOperatorType::MatrixDiag, args))),
-			"vdiag" => Ok(try!(self.add_operation(UnaryOperatorType::VectorDiag, args))),
-			"cos" => Ok(try!(self.add_operation(UnaryOperatorType::Cos, args))),
-			"sin" => Ok(try!(self.add_operation(UnaryOperatorType::Sin, args))),
-			"tan" => Ok(try!(self.add_operation(UnaryOperatorType::Tan, args))),
-			"cosh" => Ok(try!(self.add_operation(UnaryOperatorType::CosH, args))),
-			"sinh" => Ok(try!(self.add_operation(UnaryOperatorType::SinH, args))),
-			"tanh" => Ok(try!(self.add_operation(UnaryOperatorType::TanH, args))),
-			"abs" => Ok(try!(self.add_operation(UnaryOperatorType::Abs, args))),
-			"log" => Ok(try!(self.add_operation(UnaryOperatorType::Log, args))),
-			"exp" => Ok(try!(self.add_operation(UnaryOperatorType::Exp, args))),
-			"sqrt" => Ok(try!(self.add_operation(UnaryOperatorType::Sqrt, args))),
-			"square" => Ok(try!(self.add_operation(UnaryOperatorType::Square, args))),
-			"sigm" => Ok(try!(self.add_operation(UnaryOperatorType::Sigmoid, args))),
-			"rect" => Ok(try!(self.add_operation(UnaryOperatorType::Rectifier, args))),
+			"const" => Ok(try!(self.add_operation(OPERATOR_CONST, args))),
+			"eye" => Ok(try!(self.add_operation(OPERATOR_EYE, args))),
+			"sign" => Ok(try!(self.add_operation(OPERATOR_SIGN, args))),
+			"rows" => Ok(try!(self.add_operation(OPERATOR_SIZE_1, args))),
+			"cols" => Ok(try!(self.add_operation(OPERATOR_SIZE_2, args))),
+			"ones" => Ok(try!(self.add_operation(OPERATOR_ONES, args))),
+			"zeros"  => Ok(try!(self.add_operation(OPERATOR_ZEROS, args))),
+			"lt" => Ok(try!(self.add_operation(OPERATOR_LT, args))),
+			"lte" => Ok(try!(self.add_operation(OPERATOR_LTE, args))),
+			"gt" => Ok(try!(self.add_operation(OPERATOR_GT, args))),
+			"gte" => Ok(try!(self.add_operation(OPERATOR_GTE, args))),
+			"eq" => Ok(try!(self.add_operation(OPERATOR_EQ, args))),
+			"neq" => Ok(try!(self.add_operation(OPERATOR_NEQ, args))),
+			"neg" => Ok(try!(self.add_operation(OPERATOR_NEG, args))),
+			"div" => Ok(try!(self.add_operation(OPERATOR_DIV, args))),
+			"minv" => Ok(try!(self.add_operation(OPERATOR_MINV, args))),
+			"tr" => Ok(try!(self.add_operation(OPERATOR_TRANSPOSE, args))),
+			"mdiag" => Ok(try!(self.add_operation(OPERATOR_MDIAG, args))),
+			"vdiag" => Ok(try!(self.add_operation(OPERATOR_VDIAG, args))),
+			"cos" => Ok(try!(self.add_operation(OPERATOR_COS, args))),
+			"sin" => Ok(try!(self.add_operation(OPERATOR_SIN, args))),
+			"tan" => Ok(try!(self.add_operation(OPERATOR_TAN, args))),
+			"cosh" => Ok(try!(self.add_operation(OPERATOR_COSH, args))),
+			"sinh" => Ok(try!(self.add_operation(OPERATOR_SINH, args))),
+			"tanh" => Ok(try!(self.add_operation(OPERATOR_TANH, args))),
+			"abs" => Ok(try!(self.add_operation(OPERATOR_ABS, args))),
+			"log" => Ok(try!(self.add_operation(OPERATOR_LOG, args))),
+			"exp" => Ok(try!(self.add_operation(OPERATOR_EXP, args))),
+			"sqrt" => Ok(try!(self.add_operation(OPERATOR_SQRT, args))),
+			"square" => Ok(try!(self.add_operation(OPERATOR_SQUARE, args))),
+			"sigm" => Ok(try!(self.add_operation(OPERATOR_SIGM, args))),
+			"rect" => Ok(try!(self.add_operation(OPERATOR_RECT, args))),
 			"sum" => match args.len(){
 				2 => match try!(self.get_node(args[1])).node_type {
 					Type::Integer(x) => {
 						match x {
 							0 => {
 								try!(self.remove_last());
-								let result = try!(self.add_operation(
-									UnaryOperatorType::Sum(Dimension::All), vec![args[0]]));
+								let result = try!(self.add_operation(OPERATOR_SUM_ALL, vec![args[0]]));
 								Ok(result)
 							},
 							1 => {
 								try!(self.remove_last());
 								let result = try!(self.add_operation(
-									UnaryOperatorType::Sum(Dimension::First), vec![args[0]]));
+									OPERATOR_SUM_1, vec![args[0]]));
 								Ok(result)
 							},
 							2 => {
 								try!(self.remove_last());
 								let result = try!(self.add_operation(
-									UnaryOperatorType::Sum(Dimension::Second), vec![args[0]]));
+									OPERATOR_SUM_2, vec![args[0]]));
 								Ok(result)
 							},
-							_ => return Err(::std::convert::From::from(
-								 InvalidOperatorError::new(::std::convert::From::from(
-									UnaryOperatorType::Sum(Dimension::All)), 1, 0, args.len(), 1)))
+							_ => return Err(GraphError::Operator(
+								OperatorError::InvalidDimensionArgument("SUM".to_string(),x as usize, vec![0,1,2])))
 						}
 					},
-					_ => return Err(::std::convert::From::from(
-						InvalidOperatorError::new(::std::convert::From::from(
-							UnaryOperatorType::Sum(Dimension::All)), 1, 0, args.len()-1, 0)))
+					_ => return Err(GraphError::Operator(
+						OperatorError::InvalidDimensionArgument("SUM".to_string(),999, vec![0,1,2])))
 				},
-				_ => return Err(::std::convert::From::from(
-					InvalidOperatorError::new(::std::convert::From::from(
-						UnaryOperatorType::Sum(Dimension::All)), 1, 0, args.len()-1, 0)))
+				_ => return Err(GraphError::Operator(
+					OperatorError::InvalidNumberOfParents(OPERATOR_SUM_ALL, args.len()-1, 1)))
 			},
 			"l2" => match args.len(){
 				2 => match try!(self.get_node(args[1])).node_type {
@@ -999,33 +815,30 @@ impl ComputeGraph{
 							0 => {
 								try!(self.remove_last());
 								let result = try!(self.add_operation(
-									UnaryOperatorType::L2(Dimension::All), vec![args[0]]));
+									OPERATOR_L2_ALL, vec![args[0]]));
 								Ok(result)
 							},
 							1 => {
 								try!(self.remove_last());
 								let result = try!(self.add_operation(
-									UnaryOperatorType::L2(Dimension::First), vec![args[0]]));
+									OPERATOR_L2_1, vec![args[0]]));
 								Ok(result)
 							},
 							2 => {
 								try!(self.remove_last());
 								let result = try!(self.add_operation(
-									UnaryOperatorType::L2(Dimension::Second), vec![args[0]]));
+									OPERATOR_L2_2, vec![args[0]]));
 								Ok(result)
 							},
-							_ => return Err(::std::convert::From::from(
-								InvalidOperatorError::new(::std::convert::From::from(
-									UnaryOperatorType::L2(Dimension::All)), 1, 0, args.len(), 1)))
+							x => return Err(GraphError::Operator(
+								OperatorError::InvalidDimensionArgument("L2".to_string(),x as usize, vec![0,1,2])))
 						}
 					},
-					_ => return Err(::std::convert::From::from(
-						InvalidOperatorError::new(::std::convert::From::from(
-							UnaryOperatorType::L2(Dimension::All)), 1, 0, args.len()-1, 0)))
+					_ => return Err(GraphError::Operator(
+						OperatorError::InvalidDimensionArgument("L2".to_string(), 999, vec![0,1,2])))
 				},
-				_ => return Err(::std::convert::From::from(
-					InvalidOperatorError::new(::std::convert::From::from(
-						UnaryOperatorType::L2(Dimension::All)), 1, 0, args.len()-1, 0)))
+				_ => return Err(GraphError::Operator(
+					OperatorError::InvalidNumberOfParents(OPERATOR_L2_ALL, args.len()-1, 1)))
 			},
 			"l1" => match args.len(){
 				2 => match try!(self.get_node(args[1])).node_type {
@@ -1034,148 +847,44 @@ impl ComputeGraph{
 							0 => {
 								try!(self.remove_last());
 								let result = try!(self.add_operation(
-									UnaryOperatorType::L1(Dimension::All), vec![args[0]]));
+									OPERATOR_L1_ALL, vec![args[0]]));
 								Ok(result)
 							},
 							1 => {
 								try!(self.remove_last());
 								let result = try!(self.add_operation(
-									UnaryOperatorType::L1(Dimension::First), vec![args[0]]));
+									OPERATOR_L1_1, vec![args[0]]));
 								Ok(result)
 							},
 							2 => {
 								try!(self.remove_last());
 								let result = try!(self.add_operation(
-									UnaryOperatorType::L1(Dimension::Second), vec![args[0]]));
+									OPERATOR_L1_2, vec![args[0]]));
 								Ok(result)
 							},
-							_ => return Err(::std::convert::From::from(
-								InvalidOperatorError::new(::std::convert::From::from(
-									UnaryOperatorType::L1(Dimension::All)), 1, 0, args.len(), 1)))
+							x => return Err(GraphError::Operator(OperatorError::InvalidDimensionArgument("L1".to_string(),x as usize, vec![0,1,2])))
 						}
 					},
-					_ => return Err(::std::convert::From::from(
-						InvalidOperatorError::new(::std::convert::From::from(
-							UnaryOperatorType::L1(Dimension::All)), 1, 0, args.len()-1, 0)))
+					_ => return Err(GraphError::Operator(
+						OperatorError::InvalidDimensionArgument("L1".to_string(),999 , vec![0,1,2])))
 				},
-				_ => return Err(::std::convert::From::from(
-					InvalidOperatorError::new(::std::convert::From::from(
-						UnaryOperatorType::L1(Dimension::All)), 1, 0, args.len()-1, 0)))
+				_ => return Err(GraphError::Operator(
+					OperatorError::InvalidNumberOfParents(OPERATOR_L1_ALL, args.len()-1, 1)))
 			},
-			"max" => Ok(try!(self.add_operation(BinaryOperatorType::Max, args))),
-			"min" => Ok(try!(self.add_operation(BinaryOperatorType::Min, args))),
-			"pow" => Ok(try!(self.add_operation(BinaryOperatorType::Pow, args))),
-			"quad" => Ok(try!(self.add_operation(BinaryOperatorType::Quadratic, args))),
-			"subind" => Ok(try!(self.add_operation(SpecialUnaryOperatorType::SubIndex, args))),
-			"subasign" => Ok(try!(self.add_operation(SpecialUnaryOperatorType::SubAssign, args))),
-			"reshape" => Ok(try!(self.add_operation(SpecialUnaryOperatorType::Reshape, args))),
-			"replicate" => match args.len() {
-					_ => Ok(1)
-			},
-			"add" => Ok(try!(self.add_operation(NaryOperatorType::Add, args))),
-			"mul" => Ok(try!(self.add_operation(NaryOperatorType::Mul, args))),
-			"dot" => Ok(try!(self.add_operation(NaryOperatorType::Dot, args))),
-			"horzcat" => Ok(try!(self.add_operation(NaryOperatorType::HorzCat, args))),
-			"vertcat" => Ok(try!(self.add_operation(NaryOperatorType::VertCat, args))),
-			// "sum" => match args.len() {
-			// 	2 => {
-			// 		let val : i64;
-			// 		let ch;
-			// 		match self.nodes[args[1]] {
-			// 			Some(ComputeNode{node_type: Type::Integer(x), id:_, name:_, ref children , op:_
-			// 				, grad_level: _, inline:_, grad_child: _, grad_parents: _}) if x == 0 || x == 1 || x == 2 => {
-			// 				val = x;
-			// 				ch = children.len();
-			// 			}
-			// 			_ => return Err("The second argument for Sum is missing from the graph or is not 0,1 or 2.".to_string())
-			// 		}
-			// 		if self.counter - 1 == args[1] && ch == 0 {
-			// 			println!("1");
-			// 			self.remove_last();
-			// 		}
-			// 		match val  {
-			// 			0 => self.add_operation(Operator::Sum(args[0], Dimension::All)),
-			// 			1 => self.add_operation(Operator::Sum(args[0], Dimension::First)),
-			// 			2 => self.add_operation(Operator::Sum(args[0], Dimension::Second)),
-			// 			_ => Err("Sum takes as an argument only 0,1 or 2".to_string())
-			// 		}
-			// 	},
-			// 	_ => Err("Sum takes exactly two arguments".to_string())
-			// },
-			// "l2" => match args.len() {
-			// 	2 => {
-			// 		let val : i64;
-			// 		let ch;
-			// 		match self.nodes[args[1]] {
-			// 			Some(ComputeNode{node_type: Type::Integer(x), id:_, name:_, ref children , op:_
-			// 				, grad_level: _, inline:_, grad_child: _, grad_parents: _}) if x == 0 || x == 1 || x == 2 => {
-			// 				val = x;
-			// 				ch = children.len();
-			// 			}
-			// 			_ => return Err("The second argument for L2 is missing from the graph or is not 0,1 or 2.".to_string())
-			// 		}
-			// 		if self.counter - 1 == args[1] && ch == 0 {
-			// 			println!("2");
-			// 			self.remove_last();
-			// 		}
-			// 		match val  {
-			// 			0 => self.add_operation(Operator::L2(args[0], Dimension::All)),
-			// 			1 => self.add_operation(Operator::L2(args[0], Dimension::First)),
-			// 			2 => self.add_operation(Operator::L2(args[0], Dimension::Second)),
-			// 			_ => Err("L2 takes as an argument only 0,1 or 2".to_string())
-			// 		}
-			// 	},
-			// 	_ => Err("L2 takes exactly two arguments".to_string())
-			// },
-			// "l1" => match args.len() {
-			// 	2 => {
-			// 		let val : i64;
-			// 		let ch;
-			// 		match self.nodes[args[1]] {
-			// 			Some(ComputeNode{node_type: Type::Integer(x), id:_, name:_, ref children , op:_
-			// 				, grad_level: _, inline:_, grad_child: _, grad_parents: _}) if x == 0 || x == 1 || x == 2 => {
-			// 				val = x;
-			// 				ch = children.len();
-			// 			}
-			// 			_ => return Err("The second argument for L1 is missing from the graph or is not 0,1 or 2.".to_string())
-			// 		}
-			// 		if self.counter - 1 == args[1] && ch == 0 {
-			// 			println!("3");
-			// 			self.remove_last();
-			// 		}
-			// 		match val  {
-			// 			0 => self.add_operation(Operator::L1(args[0], Dimension::All)),
-			// 			1 => self.add_operation(Operator::L1(args[0], Dimension::First)),
-			// 			2 => self.add_operation(Operator::L1(args[0], Dimension::Second)),
-			// 			_ => Err("L1 takes as an argument only 0,1 or 2".to_string())
-			// 		}
-			// 	}
-			// 	_ => Err("L1 takes exactly two arguments".to_string())
-			// },
-			// "dot" => match args.len() {
-			// 	0 ... 1 => Err("Dot takes at least two arguments".to_string()),
-			// 	_ => self.add_operation(Operator::Dot(args.clone())),
-			// },
-			// "horzcat" => match args.len() {
-			// 	0 ... 1 => Err("HorzCat takes at least two arguments".to_string()),
-			// 	_ => self.add_operation(Operator::HorzCat(args.clone())),
-			// },
-			// "vertcat" => match args.len() {
-			// 	0 ... 1 => Err("VertCat takes at least two arguments".to_string()),
-			// 	_ => self.add_operation(Operator::VertCat(args.clone())),
-			// },
-			// "reshape" => match args.len() {
-			// 	3 => self.add_operation(Operator::Reshape(args[0], args[1], args[2])),
-			// 	_ => Err("Reshape takes exactly three arguments".to_string())
-			// },
-			// "replicateH" => match args.len() {
-			// 	2 => self.add_operation(Operator::ReplicateHorz(args[0], args[1])),
-			// 	_ => Err("ReplicateHorz takes exactly two arguments".to_string())
-			// },
-			// "replicateV" => match args.len() {
-			// 	2 => self.add_operation(Operator::ReplicateVert(args[0], args[1])),
-			// 	_ => Err("ReplicateHorz takes exactly two arguments".to_string())
-			// },
+			"max" => Ok(try!(self.add_operation(OPERATOR_MAX, args))),
+			"min" => Ok(try!(self.add_operation(OPERATOR_MIN, args))),
+			"pow" => Ok(try!(self.add_operation(OPERATOR_POW, args))),
+			"quad" => Ok(try!(self.add_operation(OPERATOR_QUAD, args))),
+			"subind" => Ok(try!(self.add_operation(OPERATOR_SUBINDEX, args))),
+			"subasign" => Ok(try!(self.add_operation(OPERATOR_SUBASSIGN, args))),
+			"reshape" => Ok(try!(self.add_operation(OPERATOR_RESHAPE, args))),
+			"replicateH" => Ok(try!(self.add_operation(OPERATOR_REPLICATEH, args))),
+			"replicateV" => Ok(try!(self.add_operation(OPERATOR_REPLICATEV, args))),
+			"add" => Ok(try!(self.add_operation(OPERATOR_ADD, args))),
+			"mul" => Ok(try!(self.add_operation(OPERATOR_MUL, args))),
+			"dot" => Ok(try!(self.add_operation(OPERATOR_DOT, args))),
+			"horzcat" => Ok(try!(self.add_operation(OPERATOR_HORZCAT, args))),
+			"vertcat" => Ok(try!(self.add_operation(OPERATOR_VERTCAT, args))),
 			_ => Err(GraphError::UnknownFunction(name.clone()))
 		}
 	}
@@ -1184,8 +893,8 @@ impl ComputeGraph{
 			"const" | "eye" | "sign" | "rows" | "cols" | "ones" | "zeros"
 			| "minv" | "mdiag" | "vdiag" | "cos" | "sin" | "tan" | "cosh" | "sinh" | "tanh"
 			| "abs"| "log" | "exp" | "sqrt" | "square" | "sigm" | "rect" | "sum" | "l2" | "l1"
-			| "max" | "min" | "pow" | "quad" | "reshape" | "replicate"| "horzcat" | "vertcat" |
-			"dot" => true,
+			| "max" | "min" | "pow" | "quad" | "reshape" | "replicateH"| "replicateV"
+			| "horzcat" | "vertcat" | "dot" => true,
 			_ => false
 		}
 	}
@@ -1261,17 +970,5 @@ impl ::std::error::Error for GraphError {
 impl ::std::convert::From<OperatorError> for GraphError {
     fn from(err: OperatorError) -> GraphError {
         GraphError::Operator(err)
-    }
-}
-
-impl ::std::convert::From<InvalidOperatorError> for GraphError {
-    fn from(err: InvalidOperatorError) -> GraphError {
-        GraphError::Operator(::std::convert::From::from(err))
-    }
-}
-
-impl ::std::convert::From<NotFoundError> for GraphError {
-    fn from(err: NotFoundError) -> GraphError {
-        GraphError::Operator(::std::convert::From::from(err))
     }
 }

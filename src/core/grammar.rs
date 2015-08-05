@@ -93,12 +93,12 @@ statement = name: ID __? EQ __? id:expression __? SEMI {
 
 /// Logical operators
 g1 -> OperatorType =
-	GTE {::std::convert::From::from(ConstantBinaryOperatorType::GreaterThanOrEqual)}
-	/ GT {::std::convert::From::from(ConstantBinaryOperatorType::GreaterThan)}
-	/ LTE {::std::convert::From::from(ConstantBinaryOperatorType::LessThanOrEqual)}
-	/ LT {::std::convert::From::from(ConstantBinaryOperatorType::LessThan)}
- 	/ NEQ {::std::convert::From::from(ConstantBinaryOperatorType::NotEquals)}
-	/ DOUBLE_EQ {::std::convert::From::from(ConstantBinaryOperatorType::Equals)}
+	GTE {OPERATOR_GTE}
+	/ GT {OPERATOR_GT}
+	/ LTE {OPERATOR_LTE}
+	/ LT {OPERATOR_LT}
+ 	/ NEQ {OPERATOR_NEQ}
+	/ DOUBLE_EQ {OPERATOR_EQ}
 
 /// Plus or Minus operators
 g2	-> bool
@@ -136,7 +136,7 @@ e1	-> usize = first: e2 rest:( __? op:g2 __? var:e2 {
 			if op {
 				Ok(var)
 			} else {
-				match graph.add_operation(UnaryOperatorType::Neg, vec![var]) {
+				match graph.add_operation(OPERATOR_NEG, vec![var]) {
 					Ok(var) => Ok(var),
 					Err(err) => result_err!(input, state, format!("{}",err))
 				}
@@ -155,7 +155,7 @@ e1	-> usize = first: e2 rest:( __? op:g2 __? var:e2 {
 			_ => {
 				let mut vars = vec![first];
 				vars.extend(rest);
-				match graph.add_operation(NaryOperatorType::Add, vars) {
+				match graph.add_operation(OPERATOR_ADD, vars) {
 					Ok(var) => Ok(var),
 					Err(err) => result_err!(input, state, format!("{}",err))
 				}
@@ -177,7 +177,7 @@ e2	-> usize = first: e3 rest:( __? op:g3 __? var:e3  {
 			if op {
 				Ok(var)
 			} else {
-				match graph.add_operation(UnaryOperatorType::Div, vec![var]) {
+				match graph.add_operation(OPERATOR_DIV, vec![var]) {
 					Ok(var) => Ok(var),
 					Err(err) => result_err!(input, state, format!("{}",err))
 				}
@@ -196,7 +196,7 @@ e2	-> usize = first: e3 rest:( __? op:g3 __? var:e3  {
 			_ => {
 				let mut vars = vec![first];
 				vars.extend(rest);
-				match graph.add_operation(NaryOperatorType::Mul, vars) {
+				match graph.add_operation(OPERATOR_MUL, vars) {
 					Ok(var) => Ok(var),
 					Err(err) => result_err!(input, state, format!("{}",err))
 				}
@@ -216,7 +216,7 @@ e3	-> usize = vars: e4 ++ (__? DOT_PRODUCT __?) {
 		Ok(ref mut graph) => match vars.len() {
 			0 => unreachable!(),
 			1 => Ok(vars[0]),
-			_ => match graph.add_operation(NaryOperatorType::Dot, vars) {
+			_ => match graph.add_operation(OPERATOR_DOT, vars) {
 				Ok(var) => Ok(var),
 				Err(err) => result_err!(input, state, format!("{}",err))
 			}
@@ -233,7 +233,7 @@ e3	-> usize = vars: e4 ++ (__? DOT_PRODUCT __?) {
 e4	-> usize = m:MINUS? __? var: e5 {
 	let result = match *graph_res{
 		Ok(ref mut graph) => match m {
-			Some(_) => match graph.add_operation(UnaryOperatorType::Neg,vec![var]) {
+			Some(_) => match graph.add_operation(OPERATOR_NEG,vec![var]) {
 				Ok(var) => Ok(var),
 				Err(err) => result_err!(input, state, format!("{}",err))
 			},
@@ -251,7 +251,7 @@ e4	-> usize = m:MINUS? __? var: e5 {
 e5  -> usize = first: e6 second: (__? EXP __? var:e6 {var})? {
 	let result = match *graph_res{
 		Ok(ref mut graph) => match second{
-			Some(id) => match graph.add_operation(BinaryOperatorType::Pow,vec![first,id]) {
+			Some(id) => match graph.add_operation(OPERATOR_POW,vec![first,id]) {
 				Ok(var) => Ok(var),
 				Err(err) => result_err!(input, state, format!("{}",err))
 			},
@@ -269,7 +269,7 @@ e5  -> usize = first: e6 second: (__? EXP __? var:e6 {var})? {
 e6	-> usize = var: unaryExpression tr: TRANSPOSE? {
 	let mut result = match *graph_res{
 		Ok(ref mut graph) => match tr{
-			Some(_) => match graph.add_operation(UnaryOperatorType::Transpose,vec![var]) {
+			Some(_) => match graph.add_operation(OPERATOR_TRANSPOSE,vec![var]) {
 				Ok(var) => Ok(var),
 				Err(err) => result_err!(input, state, format!("{}",err))
 			},
@@ -307,7 +307,7 @@ arg3:expression __? COMMA __? arg4:expression __? RSBRACE {
 	let result = match *graph_res{
 		Ok(ref mut graph) => match variable_table.get(&name) {
 			Some(id) => match graph.add_operation(
-				SpecialUnaryOperatorType::SubIndex,vec![*id,arg1,arg2,arg3,arg4]) {
+				OPERATOR_SUBINDEX,vec![*id,arg1,arg2,arg3,arg4]) {
 				Ok(var) => Ok(var),
 				Err(err) => result_err!(input, state, format!("{}",err))
 			},

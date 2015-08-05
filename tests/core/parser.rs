@@ -76,18 +76,18 @@ parametarise_test!(parse_fail,
 	sin = tanh(w*vertcat(h,1));
 	L = l2(h-y,0);
 	end"],
-	// ["Error at 4:13: Comparison operators not supported!",
-	// "function [L] = mat(@w,x,y)
-	// h = tanh(w*vertcat(x,1));
-	// s = sinh(w*horzcat(h,1));
-	// L = l1(h>y,0);
-	// end"],
+	["Error at 4:14: OperatorError: Can not create an operator L1 with dimension 3, when [0, 1, 2] are possible",
+	"function [L] = mat(@w,x,y)
+	h = tanh(w*vertcat(x,1));
+	s = sinh(w*horzcat(h,1));
+	L = l1(h>y,3);
+	end"],
 	["Error at 4:5: Output variable \'k\' has not been defined",
 	"function [L,k] = mat(@w,x,y,@z)
 	h = w + x dot y * z;
 	L = sum(h^2,0);
 	end"],
-	["Error at 2:29: OperatorError: InvalidOperatorError: The operator Nary(HorzCat) should take 18446744073709551615 parents and 0 arguments, but was found to have 1 parents and 0 arguments.",
+	["Error at 2:29: OperatorError: Can not create an operator HorzCat with 1 parents, when 2 are required",
 	"function [L] = mat(@w,x,y)
 	h = horzcat(w*-vertcat(x,1));
 	s = diagV(w*horzcat(h,1));
