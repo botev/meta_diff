@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["Type","Represents the five types any `ComputeNode`"]],"struct":[["ComputeNode","The main data structure of the `ComputeGraph`"]]});

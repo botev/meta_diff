@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `core` mod in crate `meta_diff`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, core">
+
+    <title>meta_diff::core - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../../main.css">
+
+    
+    
+</head>
+<body class="rustdoc">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <section class="sidebar">
+        
+        <p class='location'><a href='../index.html'>meta_diff</a></p><script>window.sidebarCurrent = {name: 'core', ty: 'mod', relpath: '../'};</script><script defer src="../sidebar-items.js"></script>
+    </section>
+
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content mod">
+<h1 class='fqn'><span class='in-band'>Module <a href='../index.html'>meta_diff</a>::<wbr><a class='mod' href=''>core</a></span><span class='out-of-band'><span id='render-detail'>
+            <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                [<span class='inner'>&#x2212;</span>]
+            </a>
+        </span><a id='src-7' class='srclink' href='../../src/meta_diff/core/mod.rs.html#1-11' title='goto source code'>[src]</a></span></h1>
+<h2 id='structs' class='section-header'><a href="#structs">Structs</a></h2>
+<table>
+                    <tr class=' module-item'>
+                        <td><a class='struct' href='struct.ComputeGraph.html'
+                               title='meta_diff::core::ComputeGraph'>ComputeGraph</a></td>
+                        <td class='docblock short'>
+                             <p>The core of this module - this structure contains the full compute graph</p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='struct' href='struct.ComputeNode.html'
+                               title='meta_diff::core::ComputeNode'>ComputeNode</a></td>
+                        <td class='docblock short'>
+                             <p>The main data structure of the <code>ComputeGraph</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='struct' href='struct.Operator.html'
+                               title='meta_diff::core::Operator'>Operator</a></td>
+                        <td class='docblock short'>
+                             <p>A struct that captures all supported mathematical operations with their metadata</p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='struct' href='struct.ParseError.html'
+                               title='meta_diff::core::ParseError'>ParseError</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                </table><h2 id='enums' class='section-header'><a href="#enums">Enums</a></h2>
+<table>
+                    <tr class=' module-item'>
+                        <td><a class='enum' href='enum.BinaryOperatorType.html'
+                               title='meta_diff::core::BinaryOperatorType'>BinaryOperatorType</a></td>
+                        <td class='docblock short'>
+                             <p>An enum for operators which take a two parent nodes</p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='enum' href='enum.ConstantBinaryOperatorType.html'
+                               title='meta_diff::core::ConstantBinaryOperatorType'>ConstantBinaryOperatorType</a></td>
+                        <td class='docblock short'>
+                             <p>An enum for operators which take two parent nodes and produce a constant</p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='enum' href='enum.ConstantOperatorType.html'
+                               title='meta_diff::core::ConstantOperatorType'>ConstantOperatorType</a></td>
+                        <td class='docblock short'>
+                             <p>An enum for all operators which  produce a constant</p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='enum' href='enum.ConstantUnaryOperatorType.html'
+                               title='meta_diff::core::ConstantUnaryOperatorType'>ConstantUnaryOperatorType</a></td>
+                        <td class='docblock short'>
+                             <p>An enum for operators which take a single parent node and produce a constant</p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='enum' href='enum.Dimension.html'
+                               title='meta_diff::core::Dimension'>Dimension</a></td>
+                        <td class='docblock short'>
+                             <p>Represents all possible dimensionality arguments, used in the operators</p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='enum' href='enum.GraphError.html'
+                               title='meta_diff::core::GraphError'>GraphError</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='enum' href='enum.NaryOperatorType.html'
+                               title='meta_diff::core::NaryOperatorType'>NaryOperatorType</a></td>
+                        <td class='docblock short'>
+                             <p>An enum for operators which are applied to several parent nodes</p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='enum' href='enum.OperatorError.html'
+                               title='meta_diff::core::OperatorError'>OperatorError</a></td>
+                        <td class='docblock short'>
+                             <p>An error when trying to create or manipulate an operator in in consistent way</p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='enum' href='enum.OperatorType.html'
+                               title='meta_diff::core::OperatorType'>OperatorType</a></td>
+                        <td class='docblock short'>
+                             <p>An enum that represents all supported mathematical operations</p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='enum' href='enum.SpecialUnaryOperatorType.html'
+                               title='meta_diff::core::SpecialUnaryOperatorType'>SpecialUnaryOperatorType</a></td>
+                        <td class='docblock short'>
+                             <p>An enum for special operators which take a single parent node.</p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='enum' href='enum.Type.html'
+                               title='meta_diff::core::Type'>Type</a></td>
+                        <td class='docblock short'>
+                             <p>Represents the five types any <code>ComputeNode</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='enum' href='enum.UnaryOperatorType.html'
+                               title='meta_diff::core::UnaryOperatorType'>UnaryOperatorType</a></td>
+                        <td class='docblock short'>
+                             <p>An enum for operators which take a single parent node.</p>
+
+                        </td>
+                    </tr>
+                </table><h2 id='constants' class='section-header'><a href="#constants">Constants</a></h2>
+<table>
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_ABS.html'
+                               title='meta_diff::core::OPERATOR_ABS'>OPERATOR_ABS</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType = OperatorType::Unary(UnaryOperatorType::Abs)</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_ADD.html'
+                               title='meta_diff::core::OPERATOR_ADD'>OPERATOR_ADD</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType::Nary(NaryOperatorType::Add)</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_CONST.html'
+                               title='meta_diff::core::OPERATOR_CONST'>OPERATOR_CONST</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType::Constant(ConstantOperatorType::Unary(ConstantUnaryOperatorType::Const))</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_COS.html'
+                               title='meta_diff::core::OPERATOR_COS'>OPERATOR_COS</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType = OperatorType::Unary(UnaryOperatorType::Cos)</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_COSH.html'
+                               title='meta_diff::core::OPERATOR_COSH'>OPERATOR_COSH</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType = OperatorType::Unary(UnaryOperatorType::CosH)</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_DIV.html'
+                               title='meta_diff::core::OPERATOR_DIV'>OPERATOR_DIV</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType = OperatorType::Unary(UnaryOperatorType::Div)</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_DOT.html'
+                               title='meta_diff::core::OPERATOR_DOT'>OPERATOR_DOT</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType::Nary(NaryOperatorType::Dot)</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_EQ.html'
+                               title='meta_diff::core::OPERATOR_EQ'>OPERATOR_EQ</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType::Constant(ConstantOperatorType::Binary(ConstantBinaryOperatorType::Equals))</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_EXP.html'
+                               title='meta_diff::core::OPERATOR_EXP'>OPERATOR_EXP</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType = OperatorType::Unary(UnaryOperatorType::Exp)</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_EYE.html'
+                               title='meta_diff::core::OPERATOR_EYE'>OPERATOR_EYE</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType::Constant(ConstantOperatorType::Unary(ConstantUnaryOperatorType::Eye))</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_GT.html'
+                               title='meta_diff::core::OPERATOR_GT'>OPERATOR_GT</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType::Constant(ConstantOperatorType::Binary(ConstantBinaryOperatorType::GreaterThan))</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_GTE.html'
+                               title='meta_diff::core::OPERATOR_GTE'>OPERATOR_GTE</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType::Constant(ConstantOperatorType::Binary(ConstantBinaryOperatorType::GreaterThanOrEqual))</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_HORZCAT.html'
+                               title='meta_diff::core::OPERATOR_HORZCAT'>OPERATOR_HORZCAT</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType::Nary(NaryOperatorType::HorzCat)</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_L1_1.html'
+                               title='meta_diff::core::OPERATOR_L1_1'>OPERATOR_L1_1</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType::Unary(UnaryOperatorType::L1(Dimension::First))</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_L1_2.html'
+                               title='meta_diff::core::OPERATOR_L1_2'>OPERATOR_L1_2</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType::Unary(UnaryOperatorType::L1(Dimension::Second))</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_L1_ALL.html'
+                               title='meta_diff::core::OPERATOR_L1_ALL'>OPERATOR_L1_ALL</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType::Unary(UnaryOperatorType::L1(Dimension::All))</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_L2_1.html'
+                               title='meta_diff::core::OPERATOR_L2_1'>OPERATOR_L2_1</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType::Unary(UnaryOperatorType::L2(Dimension::First))</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_L2_2.html'
+                               title='meta_diff::core::OPERATOR_L2_2'>OPERATOR_L2_2</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType::Unary(UnaryOperatorType::L2(Dimension::Second))</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_L2_ALL.html'
+                               title='meta_diff::core::OPERATOR_L2_ALL'>OPERATOR_L2_ALL</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType::Unary(UnaryOperatorType::L2(Dimension::All))</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_LOG.html'
+                               title='meta_diff::core::OPERATOR_LOG'>OPERATOR_LOG</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType = OperatorType::Unary(UnaryOperatorType::Log)</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_LT.html'
+                               title='meta_diff::core::OPERATOR_LT'>OPERATOR_LT</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType::Constant(ConstantOperatorType::Binary(ConstantBinaryOperatorType::LessThan))</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_LTE.html'
+                               title='meta_diff::core::OPERATOR_LTE'>OPERATOR_LTE</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType::Constant(ConstantOperatorType::Binary(ConstantBinaryOperatorType::LessThanOrEqual))</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_MAX.html'
+                               title='meta_diff::core::OPERATOR_MAX'>OPERATOR_MAX</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType::Binary(BinaryOperatorType::Max))</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_MDIAG.html'
+                               title='meta_diff::core::OPERATOR_MDIAG'>OPERATOR_MDIAG</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType = OperatorType::Unary(UnaryOperatorType::MatrixDiag)</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_MIN.html'
+                               title='meta_diff::core::OPERATOR_MIN'>OPERATOR_MIN</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType::Binary(BinaryOperatorType::Min))</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_MINV.html'
+                               title='meta_diff::core::OPERATOR_MINV'>OPERATOR_MINV</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType = OperatorType::Unary(UnaryOperatorType::MatrixInverse)</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_MUL.html'
+                               title='meta_diff::core::OPERATOR_MUL'>OPERATOR_MUL</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType::Nary(NaryOperatorType::Mul)</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_NEG.html'
+                               title='meta_diff::core::OPERATOR_NEG'>OPERATOR_NEG</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType = OperatorType::Unary(UnaryOperatorType::Neg)</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_NEQ.html'
+                               title='meta_diff::core::OPERATOR_NEQ'>OPERATOR_NEQ</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType::Constant(ConstantOperatorType::Binary(ConstantBinaryOperatorType::NotEquals))</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_NONE.html'
+                               title='meta_diff::core::OPERATOR_NONE'>OPERATOR_NONE</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType::Constant(ConstantOperatorType::None)</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_ONES.html'
+                               title='meta_diff::core::OPERATOR_ONES'>OPERATOR_ONES</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType::Constant(ConstantOperatorType::Binary(ConstantBinaryOperatorType::Ones))</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_POW.html'
+                               title='meta_diff::core::OPERATOR_POW'>OPERATOR_POW</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType::Binary(BinaryOperatorType::Pow))</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_QUAD.html'
+                               title='meta_diff::core::OPERATOR_QUAD'>OPERATOR_QUAD</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType::Binary(BinaryOperatorType::Quadratic))</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_RECT.html'
+                               title='meta_diff::core::OPERATOR_RECT'>OPERATOR_RECT</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType = OperatorType::Unary(UnaryOperatorType::Rectifier)</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_REPLICATEH.html'
+                               title='meta_diff::core::OPERATOR_REPLICATEH'>OPERATOR_REPLICATEH</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType::Special(SpecialUnaryOperatorType::ReplicateHorz)</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_REPLICATEV.html'
+                               title='meta_diff::core::OPERATOR_REPLICATEV'>OPERATOR_REPLICATEV</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType::Special(SpecialUnaryOperatorType::ReplicateVert)</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_RESHAPE.html'
+                               title='meta_diff::core::OPERATOR_RESHAPE'>OPERATOR_RESHAPE</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType::Special(SpecialUnaryOperatorType::Reshape)</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_SIGM.html'
+                               title='meta_diff::core::OPERATOR_SIGM'>OPERATOR_SIGM</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType = OperatorType::Unary(UnaryOperatorType::Sigmoid)</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_SIGN.html'
+                               title='meta_diff::core::OPERATOR_SIGN'>OPERATOR_SIGN</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType::Constant(ConstantOperatorType::Unary(ConstantUnaryOperatorType::Sign))</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_SIN.html'
+                               title='meta_diff::core::OPERATOR_SIN'>OPERATOR_SIN</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType = OperatorType::Unary(UnaryOperatorType::Sin)</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_SINH.html'
+                               title='meta_diff::core::OPERATOR_SINH'>OPERATOR_SINH</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType = OperatorType::Unary(UnaryOperatorType::SinH)</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_SIZE_1.html'
+                               title='meta_diff::core::OPERATOR_SIZE_1'>OPERATOR_SIZE_1</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType::Constant(ConstantOperatorType::Unary(ConstantUnaryOperatorType::Size(Dimension::First)))</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_SIZE_2.html'
+                               title='meta_diff::core::OPERATOR_SIZE_2'>OPERATOR_SIZE_2</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType::Constant(ConstantOperatorType::Unary(ConstantUnaryOperatorType::Size(Dimension::Second)))</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_SQRT.html'
+                               title='meta_diff::core::OPERATOR_SQRT'>OPERATOR_SQRT</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType = OperatorType::Unary(UnaryOperatorType::Sqrt)</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_SQUARE.html'
+                               title='meta_diff::core::OPERATOR_SQUARE'>OPERATOR_SQUARE</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType = OperatorType::Unary(UnaryOperatorType::Square)</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_SUBASSIGN.html'
+                               title='meta_diff::core::OPERATOR_SUBASSIGN'>OPERATOR_SUBASSIGN</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType::Special(SpecialUnaryOperatorType::SubAssign)</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_SUBINDEX.html'
+                               title='meta_diff::core::OPERATOR_SUBINDEX'>OPERATOR_SUBINDEX</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType::Special(SpecialUnaryOperatorType::SubIndex)</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_SUM_1.html'
+                               title='meta_diff::core::OPERATOR_SUM_1'>OPERATOR_SUM_1</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType::Unary(UnaryOperatorType::Sum(Dimension::First))</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_SUM_2.html'
+                               title='meta_diff::core::OPERATOR_SUM_2'>OPERATOR_SUM_2</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType::Unary(UnaryOperatorType::Sum(Dimension::Second))</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_SUM_ALL.html'
+                               title='meta_diff::core::OPERATOR_SUM_ALL'>OPERATOR_SUM_ALL</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType::Unary(UnaryOperatorType::Sum(Dimension::All))</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_TAN.html'
+                               title='meta_diff::core::OPERATOR_TAN'>OPERATOR_TAN</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType = OperatorType::Unary(UnaryOperatorType::Tan)</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_TANH.html'
+                               title='meta_diff::core::OPERATOR_TANH'>OPERATOR_TANH</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType = OperatorType::Unary(UnaryOperatorType::TanH)</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_TRANSPOSE.html'
+                               title='meta_diff::core::OPERATOR_TRANSPOSE'>OPERATOR_TRANSPOSE</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType = OperatorType::Unary(UnaryOperatorType::Transpose)</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_VDIAG.html'
+                               title='meta_diff::core::OPERATOR_VDIAG'>OPERATOR_VDIAG</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType = OperatorType::Unary(UnaryOperatorType::VectorDiag)</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_VERTCAT.html'
+                               title='meta_diff::core::OPERATOR_VERTCAT'>OPERATOR_VERTCAT</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType::Nary(NaryOperatorType::VertCat)</code></p>
+
+                        </td>
+                    </tr>
+                
+                    <tr class=' module-item'>
+                        <td><a class='constant' href='constant.OPERATOR_ZEROS.html'
+                               title='meta_diff::core::OPERATOR_ZEROS'>OPERATOR_ZEROS</a></td>
+                        <td class='docblock short'>
+                             <p>A <code>OperatorType::Constant(ConstantOperatorType::Binary(ConstantBinaryOperatorType::Zeros))</code></p>
+
+                        </td>
+                    </tr>
+                </table><h2 id='functions' class='section-header'><a href="#functions">Functions</a></h2>
+<table>
+                    <tr class=' module-item'>
+                        <td><a class='fn' href='fn.parseMetaFile.html'
+                               title='meta_diff::core::parseMetaFile'>parseMetaFile</a></td>
+                        <td class='docblock short'>
+                             
+                        </td>
+                    </tr>
+                </table></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <div id="help" class="hidden">
+        <div>
+            <div class="shortcuts">
+                <h1>Keyboard Shortcuts</h1>
+
+                <dl>
+                    <dt>?</dt>
+                    <dd>Show this help dialog</dd>
+                    <dt>S</dt>
+                    <dd>Focus the search field</dd>
+                    <dt>&larrb;</dt>
+                    <dd>Move up in search results</dd>
+                    <dt>&rarrb;</dt>
+                    <dd>Move down in search results</dd>
+                    <dt>&#9166;</dt>
+                    <dd>Go to active search result</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h1>Search Tricks</h1>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code>)
+                </p>
+            </div>
+        </div>
+    </div>
+
+    
+
+    <script>
+        window.rootPath = "../../";
+        window.currentCrate = "meta_diff";
+        window.playgroundUrl = "";
+    </script>
+    <script src="../../jquery.js"></script>
+    <script src="../../main.js"></script>
+    
+    <script async src="../../search-index.js"></script>
+</body>
+</html>

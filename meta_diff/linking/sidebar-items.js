@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["DynamicLinkingError",""]],"fn":[["dynamical_linking_rust","The function performs several actions in sequence:"]],"struct":[["DLFunction","An encapsulater object of a function loaded from a dynamic library. The object is required because the if the `DynamicLibrary` object is dropped the function pointer will no longer be valid"]]});

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `ComputeNode` struct in crate `meta_diff`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, ComputeNode">
+
+    <title>meta_diff::core::ComputeNode - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../../main.css">
+
+    
+    
+</head>
+<body class="rustdoc">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <section class="sidebar">
+        
+        <p class='location'><a href='../index.html'>meta_diff</a>::<wbr><a href='index.html'>core</a></p><script>window.sidebarCurrent = {name: 'ComputeNode', ty: 'struct', relpath: ''};</script><script defer src="sidebar-items.js"></script>
+    </section>
+
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content struct">
+<h1 class='fqn'><span class='in-band'>Struct <a href='../index.html'>meta_diff</a>::<wbr><a href='index.html'>core</a>::<wbr><a class='struct' href=''>ComputeNode</a></span><span class='out-of-band'><span id='render-detail'>
+            <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                [<span class='inner'>&#x2212;</span>]
+            </a>
+        </span><a id='src-6636' class='srclink' href='../../src/meta_diff/core/node.rs.html#25-45' title='goto source code'>[src]</a></span></h1>
+<pre class='rust struct'>pub struct ComputeNode {
+    pub id: <a href='http://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>,
+    pub node_type: <a class='enum' href='../../meta_diff/core/enum.Type.html' title='meta_diff::core::Type'>Type</a>,
+    pub name: <a class='struct' href='http://doc.rust-lang.org/nightly/collections/string/struct.String.html' title='collections::string::String'>String</a>,
+    pub children: <a class='struct' href='http://doc.rust-lang.org/nightly/collections/vec/struct.Vec.html' title='collections::vec::Vec'>Vec</a>&lt;<a href='http://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>&gt;,
+    pub grad_level: <a href='http://doc.rust-lang.org/nightly/std/primitive.u8.html'>u8</a>,
+    pub inline: <a href='http://doc.rust-lang.org/nightly/std/primitive.bool.html'>bool</a>,
+    pub grad_child: <a class='enum' href='http://doc.rust-lang.org/nightly/core/option/enum.Option.html' title='core::option::Option'>Option</a>&lt;<a href='http://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>&gt;,
+    pub grad_parents: <a class='struct' href='http://doc.rust-lang.org/nightly/collections/vec/struct.Vec.html' title='collections::vec::Vec'>Vec</a>&lt;<a href='http://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>&gt;,
+    pub op: <a class='struct' href='../../meta_diff/core/struct.Operator.html' title='meta_diff::core::Operator'>Operator</a>,
+}</pre><div class='docblock'><p>The main data structure of the <code>ComputeGraph</code></p>
+</div><h2 class='fields'>Fields</h2>
+<table><tr class='stab '>
+                                  <td id='structfield.id'><code>id</code></td><td><div class='docblock'><p>The id is equivalent to the index in the nodes list of the <code>ComputeGraph</code></p>
+</div></td></tr><tr class='stab '>
+                                  <td id='structfield.node_type'><code>node_type</code></td><td><div class='docblock'><p>The type of the node</p>
+</div></td></tr><tr class='stab '>
+                                  <td id='structfield.name'><code>name</code></td><td><div class='docblock'><p>A user given or automatically generated name</p>
+</div></td></tr><tr class='stab '>
+                                  <td id='structfield.children'><code>children</code></td><td><div class='docblock'><p>All nodes dependable on this one</p>
+</div></td></tr><tr class='stab '>
+                                  <td id='structfield.grad_level'><code>grad_level</code></td><td><div class='docblock'><p>Defines to what gradient level computation this node belongs</p>
+</div></td></tr><tr class='stab '>
+                                  <td id='structfield.inline'><code>inline</code></td><td><div class='docblock'><p>Whether the node should be inlined by any of the source code generators</p>
+</div></td></tr><tr class='stab '>
+                                  <td id='structfield.grad_child'><code>grad_child</code></td><td><div class='docblock'><p>Defines the node which represents <code>dL/dx</code></p>
+</div></td></tr><tr class='stab '>
+                                  <td id='structfield.grad_parents'><code>grad_parents</code></td><td><div class='docblock'><p>If this node has <code>grad_level</code> more than 0, it means it could represent for some node <code>dL/dx</code>, thus this contains a list of all such nodes</p>
+</div></td></tr><tr class='stab '>
+                                  <td id='structfield.op'><code>op</code></td><td><div class='docblock'><p>What is the operator this node represents</p>
+</div></td></tr></table><h2 id='methods'>Methods</h2><h3 class='impl'><code>impl <a class='struct' href='../../meta_diff/core/struct.ComputeNode.html' title='meta_diff::core::ComputeNode'>ComputeNode</a></code></h3><div class='impl-items'><h4 id='method.new' class='method'><code>fn <a href='#method.new' class='fnname'>new</a>(id: <a href='http://doc.rust-lang.org/nightly/std/primitive.usize.html'>usize</a>, node_type: <a class='enum' href='../../meta_diff/core/enum.Type.html' title='meta_diff::core::Type'>Type</a>, grad_level: <a href='http://doc.rust-lang.org/nightly/std/primitive.u8.html'>u8</a>, op: <a class='struct' href='../../meta_diff/core/struct.Operator.html' title='meta_diff::core::Operator'>Operator</a>) -&gt; Self</code></h4>
+<div class='docblock'><p>Creates a new empty <code>ComputeNode</code>, its name depends on the input type and gradient level</p>
+</div></div><h2 id='implementations'>Trait Implementations</h2><h3 class='impl'><code>impl <a class='trait' href='http://doc.rust-lang.org/nightly/core/fmt/trait.Display.html' title='core::fmt::Display'>Display</a> for <a class='struct' href='../../meta_diff/core/struct.ComputeNode.html' title='meta_diff::core::ComputeNode'>ComputeNode</a></code></h3><div class='impl-items'><h4 id='method.fmt' class='method'><code>fn <a href='http://doc.rust-lang.org/nightly/core/fmt/trait.Display.html#method.fmt' class='fnname'>fmt</a>(&amp;self, f: &amp;mut <a class='struct' href='http://doc.rust-lang.org/nightly/core/fmt/struct.Formatter.html' title='core::fmt::Formatter'>Formatter</a>) -&gt; <a class='enum' href='http://doc.rust-lang.org/nightly/core/result/enum.Result.html' title='core::result::Result'>Result</a>&lt;<a href='http://doc.rust-lang.org/nightly/std/primitive.tuple.html'>()</a>, <a class='struct' href='http://doc.rust-lang.org/nightly/core/fmt/struct.Error.html' title='core::fmt::Error'>Error</a>&gt;</code></h4>
+</div><h3 id='derived_implementations'>Derived Implementations </h3><h3 class='impl'><code>impl <a class='trait' href='http://doc.rust-lang.org/nightly/core/cmp/trait.PartialEq.html' title='core::cmp::PartialEq'>PartialEq</a> for <a class='struct' href='../../meta_diff/core/struct.ComputeNode.html' title='meta_diff::core::ComputeNode'>ComputeNode</a></code></h3><div class='impl-items'><h4 id='method.eq' class='method'><code>fn <a href='http://doc.rust-lang.org/nightly/core/cmp/trait.PartialEq.html#method.eq' class='fnname'>eq</a>(&amp;self, __arg_0: &amp;<a class='struct' href='../../meta_diff/core/struct.ComputeNode.html' title='meta_diff::core::ComputeNode'>ComputeNode</a>) -&gt; <a href='http://doc.rust-lang.org/nightly/std/primitive.bool.html'>bool</a></code></h4>
+<h4 id='method.ne' class='method'><code>fn <a href='http://doc.rust-lang.org/nightly/core/cmp/trait.PartialEq.html#method.ne' class='fnname'>ne</a>(&amp;self, __arg_0: &amp;<a class='struct' href='../../meta_diff/core/struct.ComputeNode.html' title='meta_diff::core::ComputeNode'>ComputeNode</a>) -&gt; <a href='http://doc.rust-lang.org/nightly/std/primitive.bool.html'>bool</a></code></h4>
+</div><h3 class='impl'><code>impl <a class='trait' href='http://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html' title='core::fmt::Debug'>Debug</a> for <a class='struct' href='../../meta_diff/core/struct.ComputeNode.html' title='meta_diff::core::ComputeNode'>ComputeNode</a></code></h3><div class='impl-items'><h4 id='method.fmt' class='method'><code>fn <a href='http://doc.rust-lang.org/nightly/core/fmt/trait.Debug.html#method.fmt' class='fnname'>fmt</a>(&amp;self, __arg_0: &amp;mut <a class='struct' href='http://doc.rust-lang.org/nightly/core/fmt/struct.Formatter.html' title='core::fmt::Formatter'>Formatter</a>) -&gt; <a class='type' href='http://doc.rust-lang.org/nightly/core/fmt/type.Result.html' title='core::fmt::Result'>Result</a></code></h4>
+</div><h3 class='impl'><code>impl <a class='trait' href='http://doc.rust-lang.org/nightly/core/clone/trait.Clone.html' title='core::clone::Clone'>Clone</a> for <a class='struct' href='../../meta_diff/core/struct.ComputeNode.html' title='meta_diff::core::ComputeNode'>ComputeNode</a></code></h3><div class='impl-items'><h4 id='method.clone' class='method'><code>fn <a href='http://doc.rust-lang.org/nightly/core/clone/trait.Clone.html#method.clone' class='fnname'>clone</a>(&amp;self) -&gt; <a class='struct' href='../../meta_diff/core/struct.ComputeNode.html' title='meta_diff::core::ComputeNode'>ComputeNode</a></code></h4>
+<h4 id='method.clone_from' class='method'><code>fn <a href='http://doc.rust-lang.org/nightly/core/clone/trait.Clone.html#method.clone_from' class='fnname'>clone_from</a>(&amp;mut self, source: &amp;Self)</code></h4>
+</div></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <div id="help" class="hidden">
+        <div>
+            <div class="shortcuts">
+                <h1>Keyboard Shortcuts</h1>
+
+                <dl>
+                    <dt>?</dt>
+                    <dd>Show this help dialog</dd>
+                    <dt>S</dt>
+                    <dd>Focus the search field</dd>
+                    <dt>&larrb;</dt>
+                    <dd>Move up in search results</dd>
+                    <dt>&rarrb;</dt>
+                    <dd>Move down in search results</dd>
+                    <dt>&#9166;</dt>
+                    <dd>Go to active search result</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h1>Search Tricks</h1>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code>)
+                </p>
+            </div>
+        </div>
+    </div>
+
+    
+
+    <script>
+        window.rootPath = "../../";
+        window.currentCrate = "meta_diff";
+        window.playgroundUrl = "";
+    </script>
+    <script src="../../jquery.js"></script>
+    <script src="../../main.js"></script>
+    
+    <script async src="../../search-index.js"></script>
+</body>
+</html>
