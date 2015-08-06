@@ -1,3 +1,4 @@
+#![feature(dynamic_lib)]
 /// A flag for enabling certain form of verification inside the different modules. This is similar to a debugging flag, but will guarantee semantic checks in each module, where needed.
 ///
 /// Until the library has proven to be stable it is required it to always be set to `true`
@@ -6,6 +7,7 @@ const VERIFICATION: bool = true;
 pub mod core;
 pub mod optimization;
 pub mod codegen;
+pub mod linking;
 
 use std::io::Write;
 pub fn print_graph(graph: &core::ComputeGraph, directory: &mut std::path::PathBuf, name: &String) -> Result<(), ProgramError>{
