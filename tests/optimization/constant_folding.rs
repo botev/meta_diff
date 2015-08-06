@@ -53,64 +53,72 @@ fn constant_folding_none(nodes: usize, source: &str){
     }
 }
 
-parametarise_test!(constant_folding_some,
-	[11, 10,
+parametarise_test!(constant_folding_some,{
+	11, 10,
 	"function [d] = mat(a,b)
 	c = 1 + 2 * 3';
 	d = l2(c,0) * l1(c,0);
-	end"],
-	[17, 16,
+	end"
+},{
+	17, 16,
 	"function [L] = mat(@w,x,y)
 	h = tanh(w*const(vertcat(x,1)));
 	h = tanh(w*const(vertcat(h,1)));
 	L = quad(const(h),eye(3));
-	end"],
-	[18, 16,
+	end"
+},{
+	18, 16,
 	"function [L] = mat(@w,x,y)
 	h = tanh(w*const(vertcat(x,1)));
 	s = sinh(w*horzcat(h,1));
 	L = quad(eye(3),l1(h-y,0));
-	end"],
-	[14, 13,
+	end"
+},{
+	14, 13,
 	"function [L] = mat(@w,x,y,@z)
 	h = replicateH(w,1) + x dot y * sin(2);
 	L = sum(h^2,0);
-	end"],
-	[16, 16,
+	end"
+},{
+	16, 16,
 	"function [L] = mat(@w,x,y)
 	h = const(w*-vertcat(x,cols(5)));
 	s = vdiag(w*horzcat(h,1));
 	L = l1(s-h,0);
-	end"]
-);
+	end"
+});
 
-parametarise_test!(constant_folding_none,
-	[8,
+parametarise_test!(constant_folding_none,{
+	8,
 	"function [d] = mat(a,b)
 	c = a + b * a';
 	d = l2(c,0) * l1(c,0);
-	end" ],
-	[14,
+	end"
+},{
+	14,
 	"function [L] = mat(@w,x,y)
 	h = tanh(w*vertcat(x,1));
 	h = tanh(w*vertcat(h,1));
 	L = l2(h-y,0);
-	end"],
-	[14,
+	end"
+},{
+	14,
 	"function [L] = mat(@w,x,y)
 	h = tanh(w*vertcat(x,1));
 	s = sinh(w*horzcat(h,1));
 	L = l1(h-y,0);
-	end"],
-	[10,
+	end"
+},{
+	10,
 	"function [L] = mat(@w,x,y,@z)
 	h = w + x dot y * z;
 	L = sum(h^3,0);
-	end"],
-	[15,
+	end"
+},{
+	15,
 	"function [L] = mat(@w,x,y)
 	h = const(w*-vertcat(x,1));
 	s = vdiag(w*horzcat(h,1));
 	L = l1(s-h,0);
-	end"]
-);
+	end"
+});
